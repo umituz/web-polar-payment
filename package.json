@@ -1,6 +1,6 @@
 {
   "name": "@umituz/web-polar-payment",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Universal Polar.sh subscription billing — Supabase & Firebase adapters",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
