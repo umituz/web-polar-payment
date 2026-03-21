@@ -6,6 +6,9 @@
   "module": "./dist/index.mjs",
   "types": "./dist/index.d.ts",
   "sideEffects": false,
+  "publishConfig": {
+    "access": "public"
+  },
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -20,8 +23,8 @@
     "dist"
   ],
   "scripts": {
-    "build": "tsup src/index.ts --format cjs,esm --dts --clean --external firebase --external firebase/functions --external firebase/firestore --external @supabase/supabase-js",
-    "dev": "tsup src/index.ts --format cjs,esm --dts --watch --external firebase --external firebase/functions --external firebase/firestore --external @supabase/supabase-js",
+    "build": "tsup src/index.ts --format cjs,esm --dts --clean --external firebase --external firebase/functions --external firebase/firestore",
+    "dev": "tsup src/index.ts --format cjs,esm --dts --watch --external firebase --external firebase/functions --external firebase/firestore",
     "lint": "tsc --noEmit"
   },
   "keywords": [
@@ -39,7 +42,6 @@
     "react-dom": ">=18"
   },
   "devDependencies": {
-    "@supabase/supabase-js": "^2.39.0",
     "@types/react": "^18.2.0",
     "@types/react-dom": "^18.2.0",
     "firebase": "^10.14.1",
