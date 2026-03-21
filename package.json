@@ -1,0 +1,45 @@
+{
+  "name": "@umituz/polar-billing",
+  "version": "2.0.0",
+  "description": "Universal Polar.sh subscription billing — Supabase & Firebase adapters",
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup src/index.ts --format cjs,esm --dts --clean --external firebase --external firebase/functions --external firebase/firestore --external @supabase/supabase-js",
+    "dev": "tsup src/index.ts --format cjs,esm --dts --watch --external firebase --external firebase/functions --external firebase/firestore --external @supabase/supabase-js",
+    "lint": "tsc --noEmit"
+  },
+  "keywords": [
+    "polar",
+    "subscription",
+    "billing",
+    "supabase",
+    "firebase",
+    "react"
+  ],
+  "author": "Antigravity",
+  "license": "MIT",
+  "peerDependencies": {
+    "react": ">=18",
+    "react-dom": ">=18"
+  },
+  "devDependencies": {
+    "@supabase/supabase-js": "^2.39.0",
+    "@types/react": "^18.2.0",
+    "@types/react-dom": "^18.2.0",
+    "firebase": "^10.14.1",
+    "tsup": "^8.0.0",
+    "typescript": "^5.0.0"
+  }
+}
