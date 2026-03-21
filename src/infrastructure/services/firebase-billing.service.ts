@@ -10,8 +10,9 @@ import type {
 } from '../../domain/entities';
 import { normalizeStatus, normalizeBillingCycle } from '../utils/normalization.util';
 
-type FirebaseFunctions = import('firebase/functions').Functions;
-type FirebaseFirestore = import('firebase/firestore').Firestore;
+// We use any for firebase types in implementation to bypass DTS build issues with external packages
+type FirebaseFunctions = any;
+type FirebaseFirestore = any;
 
 export interface FirebaseAdapterConfig {
   functions: FirebaseFunctions;
@@ -35,6 +36,10 @@ export interface FirebaseAdapterConfig {
   };
 }
 
+/**
+ * Firebase Billing Service
+ * @description Implementation of PolarAdapter for Firebase Functions and Firestore.
+ */
 export function createFirebaseAdapter(config: FirebaseAdapterConfig): PolarAdapter {
   const callables = {
     createCheckout: config.callables?.createCheckout ?? 'createCheckoutSession',
@@ -57,7 +62,7 @@ export function createFirebaseAdapter(config: FirebaseAdapterConfig): PolarAdapt
 
   async function callable<T = unknown, R = unknown>(name: string, data?: T): Promise<R> {
     const { httpsCallable } = await import('firebase/functions');
-    const fn = httpsCallable<T, R>(config.functions, name);
+    const fn = (httpsCallable as any)(config.functions, name) as (data?: T) => Promise<{ data: R }>;
     const result = await fn(data);
     return result.data;
   }
@@ -65,7 +70,7 @@ export function createFirebaseAdapter(config: FirebaseAdapterConfig): PolarAdapt
   return {
     async getStatus(userId: string): Promise<SubscriptionStatus> {
       const { doc, getDoc } = await import('firebase/firestore');
-      const snap = await getDoc(doc(config.firestore, db.collection, userId));
+      const snap = await getDoc((doc as any)(config.firestore, db.collection, userId));
 
       if (!snap.exists()) {
         return { plan: 'free', subscriptionStatus: 'none' };
