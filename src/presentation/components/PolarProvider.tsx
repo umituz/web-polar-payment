@@ -1,6 +1,4 @@
-import {
-  createContext,
-  useContext,
+import React, {
   useEffect,
   useState,
   useCallback,
@@ -8,7 +6,7 @@ import {
   useMemo,
   type ReactNode,
 } from 'react';
-import type { PolarAdapter } from '../adapters/types';
+import type { PolarAdapter } from '../../domain/interfaces';
 import type {
   SubscriptionStatus,
   CheckoutParams,
@@ -16,24 +14,13 @@ import type {
   CancelResult,
   SyncResult,
   OrderItem,
-} from '../core/types';
+} from '../../domain/entities';
+import { PolarContext } from '../hooks/usePolarBilling';
 
-// ─── Context ──────────────────────────────────────────────────────────────────
-
-interface PolarContextValue {
-  status: SubscriptionStatus;
-  loading: boolean;
-  refresh: () => Promise<void>;
-  startCheckout: (params: CheckoutParams) => Promise<void>;
-  syncSubscription: () => Promise<SyncResult>;
-  getBillingHistory: () => Promise<OrderItem[]>;
-  cancelSubscription: (reason?: CancellationReason) => Promise<CancelResult>;
-  getPortalUrl: () => Promise<string>;
-}
-
-const PolarContext = createContext<PolarContextValue | undefined>(undefined);
-
-// ─── Provider ─────────────────────────────────────────────────────────────────
+/**
+ * PolarProvider Component
+ * @description Context provider for Polar billing management.
+ */
 
 interface PolarProviderProps {
   adapter: PolarAdapter;
@@ -51,11 +38,9 @@ export function PolarProvider({ adapter, userId, children }: PolarProviderProps)
   const [loading, setLoading] = useState(true);
   const adapterRef = useRef(adapter);
   adapterRef.current = adapter;
-  // Track in-flight refresh to avoid race conditions on fast userId changes
   const refreshAbortRef = useRef<AbortController | null>(null);
 
   const refresh = useCallback(async () => {
-    // Skip empty / whitespace-only userId
     const uid = userId?.trim();
     if (!uid) {
       setStatus(FREE_STATUS);
@@ -63,7 +48,6 @@ export function PolarProvider({ adapter, userId, children }: PolarProviderProps)
       return;
     }
 
-    // Cancel any previous in-flight refresh
     refreshAbortRef.current?.abort();
     const ctrl = new AbortController();
     refreshAbortRef.current = ctrl;
@@ -89,7 +73,6 @@ export function PolarProvider({ adapter, userId, children }: PolarProviderProps)
 
   const startCheckout = useCallback(async (params: CheckoutParams) => {
     const result = await adapterRef.current.createCheckout({ ...params, userId: userId?.trim() });
-    // Validate URL before redirecting to prevent open-redirect attacks
     if (!result.url.startsWith('https://')) {
       throw new Error('Invalid checkout URL returned');
     }
@@ -100,7 +83,6 @@ export function PolarProvider({ adapter, userId, children }: PolarProviderProps)
     const uid = userId?.trim();
     if (!uid) return { synced: false };
 
-    // Context reads checkoutId from URL — never from inside the adapter
     const checkoutId = new URLSearchParams(window.location.search).get('checkout_id') ?? undefined;
     const result = await adapterRef.current.syncSubscription(uid, checkoutId);
     if (result.synced) await refresh();
@@ -128,7 +110,7 @@ export function PolarProvider({ adapter, userId, children }: PolarProviderProps)
     return adapterRef.current.getPortalUrl(uid);
   }, [userId]);
 
-  const value = useMemo<PolarContextValue>(
+  const value = useMemo(
     () => ({
       status,
       loading,
@@ -144,13 +126,3 @@ export function PolarProvider({ adapter, userId, children }: PolarProviderProps)
 
   return <PolarContext.Provider value={value}>{children}</PolarContext.Provider>;
 }
-
-// ─── Hooks ────────────────────────────────────────────────────────────────────
-
-export function usePolarBilling(): PolarContextValue {
-  const ctx = useContext(PolarContext);
-  if (!ctx) throw new Error('usePolarBilling must be used within <PolarProvider>');
-  return ctx;
-}
-
-export const useSubscription = usePolarBilling;

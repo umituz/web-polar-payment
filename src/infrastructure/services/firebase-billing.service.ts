@@ -1,4 +1,4 @@
-import type { PolarAdapter } from './types';
+import type { PolarAdapter } from '../../domain/interfaces';
 import type {
   CheckoutParams,
   CheckoutResult,
@@ -7,8 +7,8 @@ import type {
   CancelResult,
   SubscriptionStatus,
   SyncResult,
-} from '../core/types';
-import { normalizeStatus, normalizeBillingCycle } from '../core/constants';
+} from '../../domain/entities';
+import { normalizeStatus, normalizeBillingCycle } from '../utils/normalization.util';
 
 type FirebaseFunctions = import('firebase/functions').Functions;
 type FirebaseFirestore = import('firebase/firestore').Firestore;
@@ -73,7 +73,6 @@ export function createFirebaseAdapter(config: FirebaseAdapterConfig): PolarAdapt
 
       const d = snap.data() as Record<string, unknown>;
 
-      // Safely convert Firestore Timestamp → ISO string
       let currentPeriodEnd: string | undefined;
       const rawEnd = d[db.currentPeriodEnd];
       if (rawEnd != null) {
@@ -100,7 +99,6 @@ export function createFirebaseAdapter(config: FirebaseAdapterConfig): PolarAdapt
     },
 
     async syncSubscription(_userId: string, _checkoutId?: string): Promise<SyncResult> {
-      // Firebase adapter syncs via Cloud Function (doesn't need checkoutId from URL)
       return callable<Record<string, never>, SyncResult>(callables.sync, {});
     },
 
@@ -117,7 +115,6 @@ export function createFirebaseAdapter(config: FirebaseAdapterConfig): PolarAdapt
     },
 
     async getPortalUrl(_userId: string): Promise<string> {
-      // Cloud Function can return either `url` or `customerPortalUrl`
       const result = await callable<Record<string, never>, { url?: string; customerPortalUrl?: string }>(
         callables.portal,
         {},

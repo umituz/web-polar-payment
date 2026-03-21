@@ -6,11 +6,11 @@ import type {
   CancellationReason,
   CancelResult,
   SyncResult,
-} from '../core/types';
+} from '../entities';
 
 /**
  * Backend-agnostic interface every adapter must implement.
- * All adapters receive checkoutId from the context layer (never read from window.location).
+ * @description Contract for Polar billing adapters (Firebase, Supabase, etc.)
  */
 export interface PolarAdapter {
   getStatus(userId: string): Promise<SubscriptionStatus>;
