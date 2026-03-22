@@ -10,13 +10,44 @@ import type {
 } from '../../domain/entities';
 import { normalizeStatus, normalizeBillingCycle } from '../utils/normalization.util';
 
-// We use any for firebase types in implementation to bypass DTS build issues with external packages
+/**
+ * Type guard to safely extract string value from unknown Firestore data
+ */
+function asString(value: unknown): string | undefined {
+  if (typeof value === 'string') return value;
+  return undefined;
+}
+
+/**
+ * Type guard to safely extract boolean value from unknown Firestore data
+ */
+function asBoolean(value: unknown): boolean | undefined {
+  if (typeof value === 'boolean') return value;
+  return undefined;
+}
+
+/**
+ * Type guard to safely check if value is an object with toDate method
+ */
+function isTimestamp(value: unknown): value is { toDate(): Date } {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'toDate' in value &&
+    typeof (value as { toDate: unknown }).toDate === 'function'
+  );
+}
+
+// Internal type aliases for Firebase SDK compatibility
+// Using 'any' internally to avoid DTS build issues with external Firebase packages
 type FirebaseFunctions = any;
 type FirebaseFirestore = any;
 
 export interface FirebaseAdapterConfig {
-  functions: FirebaseFunctions;
-  firestore: FirebaseFirestore;
+  /** Firebase Functions instance from firebase/functions */
+  functions: unknown;
+  /** Firebase Firestore instance from firebase/firestore */
+  firestore: unknown;
   callables?: {
     createCheckout?: string;
     syncSubscription?: string;
@@ -41,6 +72,10 @@ export interface FirebaseAdapterConfig {
  * @description Implementation of PolarAdapter for Firebase Functions and Firestore.
  */
 export function createFirebaseAdapter(config: FirebaseAdapterConfig): PolarAdapter {
+  // Cast internally to Firebase types for implementation
+  const functions = config.functions as FirebaseFunctions;
+  const firestore = config.firestore as FirebaseFirestore;
+
   const callables = {
     createCheckout: config.callables?.createCheckout ?? 'createCheckoutSession',
     sync: config.callables?.syncSubscription ?? 'syncSubscription',
@@ -62,7 +97,7 @@ export function createFirebaseAdapter(config: FirebaseAdapterConfig): PolarAdapt
 
   async function callable<T = unknown, R = unknown>(name: string, data?: T): Promise<R> {
     const { httpsCallable } = await import('firebase/functions');
-    const fn = (httpsCallable as any)(config.functions, name) as (data?: T) => Promise<{ data: R }>;
+    const fn = (httpsCallable as any)(functions, name) as (data?: T) => Promise<{ data: R }>;
     const result = await fn(data);
     return result.data;
   }
@@ -70,7 +105,7 @@ export function createFirebaseAdapter(config: FirebaseAdapterConfig): PolarAdapt
   return {
     async getStatus(userId: string): Promise<SubscriptionStatus> {
       const { doc, getDoc } = await import('firebase/firestore');
-      const snap = await getDoc((doc as any)(config.firestore, db.collection, userId));
+      const snap = await getDoc((doc as any)(firestore, db.collection, userId));
 
       if (!snap.exists()) {
         return { plan: 'free', subscriptionStatus: 'none' };
@@ -81,20 +116,20 @@ export function createFirebaseAdapter(config: FirebaseAdapterConfig): PolarAdapt
       let currentPeriodEnd: string | undefined;
       const rawEnd = d[db.currentPeriodEnd];
       if (rawEnd != null) {
-        if (typeof rawEnd === 'object' && 'toDate' in (rawEnd as object)) {
-          currentPeriodEnd = (rawEnd as { toDate(): Date }).toDate().toISOString();
+        if (isTimestamp(rawEnd)) {
+          currentPeriodEnd = rawEnd.toDate().toISOString();
         } else if (typeof rawEnd === 'string') {
           currentPeriodEnd = rawEnd;
         }
       }
 
       return {
-        plan: (d[db.plan] as string) ?? 'free',
-        billingCycle: normalizeBillingCycle((d[db.billingCycle] as string) ?? 'monthly'),
-        subscriptionId: d[db.subscriptionId] as string | undefined,
-        subscriptionStatus: normalizeStatus((d[db.subscriptionStatus] as string) ?? 'none'),
-        polarCustomerId: d[db.polarCustomerId] as string | undefined,
-        cancelAtPeriodEnd: d[db.cancelAtPeriodEnd] as boolean | undefined,
+        plan: asString(d[db.plan]) ?? 'free',
+        billingCycle: normalizeBillingCycle(asString(d[db.billingCycle]) ?? 'monthly'),
+        subscriptionId: asString(d[db.subscriptionId]),
+        subscriptionStatus: normalizeStatus(asString(d[db.subscriptionStatus]) ?? 'none'),
+        polarCustomerId: asString(d[db.polarCustomerId]),
+        cancelAtPeriodEnd: asBoolean(d[db.cancelAtPeriodEnd]),
         currentPeriodEnd,
       };
     },
