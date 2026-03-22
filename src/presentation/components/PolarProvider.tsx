@@ -33,6 +33,12 @@ const FREE_STATUS: SubscriptionStatus = {
   subscriptionStatus: 'none',
 };
 
+function normalizeUserId(userId: string | undefined): string | undefined {
+  if (typeof userId !== 'string') return undefined;
+  const trimmed = userId.trim();
+  return trimmed.length > 0 ? trimmed : undefined;
+}
+
 export function PolarProvider({ adapter, userId, children }: PolarProviderProps) {
   const [status, setStatus] = useState<SubscriptionStatus>(FREE_STATUS);
   const [loading, setLoading] = useState(true);
@@ -41,7 +47,7 @@ export function PolarProvider({ adapter, userId, children }: PolarProviderProps)
   const refreshAbortRef = useRef<AbortController | null>(null);
 
   const refresh = useCallback(async () => {
-    const uid = userId?.trim();
+    const uid = normalizeUserId(userId);
     if (!uid) {
       setStatus(FREE_STATUS);
       setLoading(false);
@@ -72,15 +78,16 @@ export function PolarProvider({ adapter, userId, children }: PolarProviderProps)
   }, [refresh]);
 
   const startCheckout = useCallback(async (params: CheckoutParams) => {
-    const result = await adapterRef.current.createCheckout({ ...params, userId: userId?.trim() });
+    const uid = normalizeUserId(userId);
+    const result = await adapterRef.current.createCheckout({ ...params, userId: uid });
     if (!result.url.startsWith('https://')) {
-      throw new Error('Invalid checkout URL returned');
+      throw new Error('[polar-billing] Invalid checkout URL returned: URL must start with https://');
     }
     window.location.href = result.url;
   }, [userId]);
 
   const syncSubscription = useCallback(async (): Promise<SyncResult> => {
-    const uid = userId?.trim();
+    const uid = normalizeUserId(userId);
     if (!uid) return { synced: false };
 
     const checkoutId = new URLSearchParams(window.location.search).get('checkout_id') ?? undefined;
@@ -90,7 +97,7 @@ export function PolarProvider({ adapter, userId, children }: PolarProviderProps)
   }, [userId, refresh]);
 
   const getBillingHistory = useCallback(async (): Promise<OrderItem[]> => {
-    const uid = userId?.trim();
+    const uid = normalizeUserId(userId);
     if (!uid) return [];
     return adapterRef.current.getBillingHistory(uid);
   }, [userId]);
@@ -105,8 +112,8 @@ export function PolarProvider({ adapter, userId, children }: PolarProviderProps)
   );
 
   const getPortalUrl = useCallback(async (): Promise<string> => {
-    const uid = userId?.trim();
-    if (!uid) throw new Error('No authenticated user');
+    const uid = normalizeUserId(userId);
+    if (!uid) throw new Error('[polar-billing] Cannot get portal URL: No authenticated user');
     return adapterRef.current.getPortalUrl(uid);
   }, [userId]);
 

@@ -2,7 +2,7 @@ import type { SubscriptionStatusValue, BillingCycle } from '../../domain/entitie
 
 /**
  * Normalize a raw Polar status string to a known value.
- * @description Defaults to 'none' for unknown statuses.
+ * @description Defaults to 'none' for unknown statuses or non-string input.
  */
 export function normalizeStatus(raw: string): SubscriptionStatusValue {
   const map: Record<string, SubscriptionStatusValue> = {
@@ -17,15 +17,19 @@ export function normalizeStatus(raw: string): SubscriptionStatusValue {
     revoked: 'revoked',
     none: 'none',
   };
-  return map[raw?.toLowerCase()] ?? 'none';
+
+  if (typeof raw !== 'string') return 'none';
+  return map[raw.toLowerCase()] ?? 'none';
 }
 
-/** 
+/**
  * Normalize billing interval
- * @description Maps 'month'/'year' to 'monthly'/'yearly'
+ * @description Maps 'month'/'year' to 'monthly'/'yearly'. Defaults to 'monthly' for unknown values or non-string input.
  */
 export function normalizeBillingCycle(interval: string): BillingCycle {
-  if (interval === 'month' || interval === 'monthly') return 'monthly';
-  if (interval === 'year' || interval === 'yearly') return 'yearly';
+  if (typeof interval !== 'string') return 'monthly';
+  const normalized = interval.toLowerCase();
+  if (normalized === 'month' || normalized === 'monthly') return 'monthly';
+  if (normalized === 'year' || normalized === 'yearly') return 'yearly';
   return 'monthly';
 }
