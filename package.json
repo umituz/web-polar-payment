@@ -1,6 +1,6 @@
 {
   "name": "@umituz/web-polar-payment",
-  "version": "1.0.8",
+  "version": "1.0.9",
   "description": "Universal Polar.sh subscription billing — Firebase adapter",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
@@ -26,7 +26,11 @@
   "scripts": {
     "build": "tsup src/index.ts --format cjs,esm --dts --clean --external firebase --external firebase/functions --external firebase/firestore",
     "dev": "tsup src/index.ts --format cjs,esm --dts --watch --external firebase --external firebase/functions --external firebase/firestore",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "prepublishOnly": "npm run build",
+    "version:patch": "npm version patch -m 'chore: release v%s'",
+    "version:minor": "npm version minor -m 'chore: release v%s'",
+    "version:major": "npm version major -m 'chore: release v%s'"
   },
   "keywords": [
     "polar",
@@ -35,16 +39,16 @@
     "firebase",
     "react"
   ],
-  "author": "Antigravity",
+  "author": "umituz",
   "license": "MIT",
   "peerDependencies": {
-    "react": ">=18",
-    "react-dom": ">=18"
+    "react": ">=19.0.0",
+    "react-dom": ">=19.0.0"
   },
   "devDependencies": {
-    "@types/react": "^18.2.0",
-    "@types/react-dom": "^18.2.0",
-    "firebase": "^10.14.1",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "firebase": "^12.0.0",
     "tsup": "^8.0.0",
     "typescript": "^5.0.0"
   }
