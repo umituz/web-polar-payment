@@ -2,8 +2,8 @@
  * @umituz/web-polar-payment
  * Universal Polar.sh subscription billing — Firebase adapter
  *
- * ONEMLI: App'ler bu root barrel'i kullanMAMALI.
- * Subpath import kullanin: "@umituz/web-polar-payment/domain"
+ * IMPORTANT: Apps should NOT use this root barrel export.
+ * Use subpath imports instead: "@umituz/web-polar-payment/domain"
  */
 
 export * from './domain';
