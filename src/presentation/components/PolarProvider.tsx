@@ -16,11 +16,7 @@ import type {
   OrderItem,
 } from '../../domain/entities';
 import { PolarContext } from '../hooks/usePolarBilling';
-
-/**
- * PolarProvider Component
- * @description Context provider for Polar billing management.
- */
+import { normalizeUserId, isValidProductId, isValidCheckoutUrl, isProductionInsecureUrl } from '../../infrastructure/utils/validations.util';
 
 interface PolarProviderProps {
   adapter: PolarAdapter;
@@ -33,28 +29,19 @@ const FREE_STATUS: SubscriptionStatus = {
   subscriptionStatus: 'none',
 };
 
-function normalizeUserId(userId: string | undefined): string | undefined {
-  if (typeof userId !== 'string') return undefined;
-  const trimmed = userId.trim();
-  return trimmed.length > 0 ? trimmed : undefined;
-}
-
 export function PolarProvider({ adapter, userId, children }: PolarProviderProps) {
   const [status, setStatus] = useState<SubscriptionStatus>(FREE_STATUS);
   const [loading, setLoading] = useState(true);
 
-  // Store adapter and setters in refs to create stable callbacks
   const adapterRef = useRef(adapter);
   const statusRef = useRef({ setStatus, setLoading });
   const userIdRef = useRef(normalizeUserId(userId));
-  const refreshAbortRef = useRef<AbortController | null>(null);
+  const refreshMountedRef = useRef(true);
 
-  // Keep refs in sync
   adapterRef.current = adapter;
   statusRef.current = { setStatus, setLoading };
   userIdRef.current = normalizeUserId(userId);
 
-  // Stable refresh function with no dependencies - prevents cascading re-renders
   const refresh = useCallback(async () => {
     const uid = userIdRef.current;
     const { setStatus, setLoading } = statusRef.current;
@@ -65,37 +52,46 @@ export function PolarProvider({ adapter, userId, children }: PolarProviderProps)
       return;
     }
 
-    refreshAbortRef.current?.abort();
-    const ctrl = new AbortController();
-    refreshAbortRef.current = ctrl;
+    refreshMountedRef.current = true;
 
     try {
       setLoading(true);
       const s = await adapterRef.current.getStatus(uid);
-      if (!ctrl.signal.aborted) setStatus(s);
+      if (refreshMountedRef.current) setStatus(s);
     } catch (err) {
-      if (!ctrl.signal.aborted) {
+      if (refreshMountedRef.current) {
         console.error('[polar-billing] getStatus failed:', err);
         setStatus(FREE_STATUS);
       }
     } finally {
-      if (!ctrl.signal.aborted) setLoading(false);
+      if (refreshMountedRef.current) setLoading(false);
     }
-  }, []); // No dependencies - completely stable
+  }, []);
 
   useEffect(() => {
+    refreshMountedRef.current = true;
     refresh();
-    return () => { refreshAbortRef.current?.abort(); };
-  }, [refresh]); // Only re-run if refresh identity changes (never)
+    return () => { refreshMountedRef.current = false; };
+  }, [userId]);
 
   const startCheckout = useCallback(async (params: CheckoutParams) => {
+    if (!isValidProductId(params.productId)) {
+      throw new Error('[polar-billing] Invalid productId: must be a non-empty string');
+    }
+
     const uid = userIdRef.current;
     const result = await adapterRef.current.createCheckout({ ...params, userId: uid ?? undefined });
-    if (!result.url.startsWith('https://')) {
-      throw new Error('[polar-billing] Invalid checkout URL returned: URL must start with https://');
+
+    if (!isValidCheckoutUrl(result.url)) {
+      throw new Error('[polar-billing] Invalid checkout URL returned: URL must start with https:// or http://');
     }
+
+    if (isProductionInsecureUrl(result.url)) {
+      console.warn('[polar-billing] WARNING: Using insecure http:// URL in production environment');
+    }
+
     window.location.href = result.url;
-  }, []); // No dependencies - stable
+  }, []);
 
   const syncSubscription = useCallback(async (): Promise<SyncResult> => {
     const uid = userIdRef.current;
@@ -105,13 +101,13 @@ export function PolarProvider({ adapter, userId, children }: PolarProviderProps)
     const result = await adapterRef.current.syncSubscription(uid, checkoutId);
     if (result.synced) await refresh();
     return result;
-  }, [refresh]); // Only depends on stable refresh
+  }, [refresh]);
 
   const getBillingHistory = useCallback(async (): Promise<OrderItem[]> => {
     const uid = userIdRef.current;
     if (!uid) return [];
     return adapterRef.current.getBillingHistory(uid);
-  }, []); // No dependencies - stable
+  }, []);
 
   const cancelSubscription = useCallback(
     async (reason?: CancellationReason): Promise<CancelResult> => {
@@ -119,17 +115,15 @@ export function PolarProvider({ adapter, userId, children }: PolarProviderProps)
       if (result.success) await refresh();
       return result;
     },
-    [refresh], // Only depends on stable refresh
+    [refresh],
   );
 
   const getPortalUrl = useCallback(async (): Promise<string> => {
     const uid = userIdRef.current;
     if (!uid) throw new Error('[polar-billing] Cannot get portal URL: No authenticated user');
     return adapterRef.current.getPortalUrl(uid);
-  }, []); // No dependencies - stable
+  }, []);
 
-  // Memoized context value - only recreates when status/loading changes
-  // All functions are stable, so they don't trigger re-creation
   const value = useMemo(
     () => ({
       status,
@@ -141,7 +135,7 @@ export function PolarProvider({ adapter, userId, children }: PolarProviderProps)
       cancelSubscription,
       getPortalUrl,
     }),
-    [status, loading, refresh, syncSubscription], // startCheckout, getBillingHistory, cancelSubscription, getPortalUrl are stable
+    [status, loading, refresh, syncSubscription],
   );
 
   return <PolarContext.Provider value={value}>{children}</PolarContext.Provider>;

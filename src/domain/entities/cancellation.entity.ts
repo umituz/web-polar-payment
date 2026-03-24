@@ -1,8 +1,3 @@
-/**
- * Cancellation Entity
- * @description Types for subscription cancellation reasons and outcomes
- */
-
 export type CancellationReason =
   | 'too_expensive'
   | 'missing_features'

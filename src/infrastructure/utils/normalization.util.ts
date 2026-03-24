@@ -1,33 +1,23 @@
 import type { SubscriptionStatusValue, BillingCycle } from '../../domain/entities';
+import { SUBSCRIPTION_STATUS } from '../constants/billing.constants';
 
-// Static map outside function scope - created once, reused forever
-// Reduces GC pressure from repeated object allocations
-const STATUS_MAP: Readonly<Record<string, SubscriptionStatusValue>> = {
-  active: 'active',
-  trialing: 'trialing',
-  past_due: 'past_due',
-  incomplete: 'incomplete',
-  incomplete_expired: 'incomplete_expired',
-  unpaid: 'unpaid',
-  canceled: 'canceled',
-  cancelled: 'canceled',
-  revoked: 'revoked',
-  none: 'none',
-};
+const STATUS_MAP: Readonly<Record<string, SubscriptionStatusValue>> = Object.freeze({
+  [SUBSCRIPTION_STATUS.ACTIVE]: SUBSCRIPTION_STATUS.ACTIVE,
+  [SUBSCRIPTION_STATUS.CANCELED]: SUBSCRIPTION_STATUS.CANCELED,
+  [SUBSCRIPTION_STATUS.REVOKED]: SUBSCRIPTION_STATUS.REVOKED,
+  [SUBSCRIPTION_STATUS.TRIALING]: SUBSCRIPTION_STATUS.TRIALING,
+  [SUBSCRIPTION_STATUS.PAST_DUE]: SUBSCRIPTION_STATUS.PAST_DUE,
+  [SUBSCRIPTION_STATUS.INCOMPLETE]: SUBSCRIPTION_STATUS.INCOMPLETE,
+  [SUBSCRIPTION_STATUS.INCOMPLETE_EXPIRED]: SUBSCRIPTION_STATUS.INCOMPLETE_EXPIRED,
+  [SUBSCRIPTION_STATUS.UNPAID]: SUBSCRIPTION_STATUS.UNPAID,
+  [SUBSCRIPTION_STATUS.NONE]: SUBSCRIPTION_STATUS.NONE,
+});
 
-/**
- * Normalize a raw Polar status string to a known value.
- * @description Defaults to 'none' for unknown statuses or non-string input.
- */
 export function normalizeStatus(raw: string): SubscriptionStatusValue {
-  if (typeof raw !== 'string') return 'none';
+  if (raw == null || typeof raw !== 'string') return 'none';
   return STATUS_MAP[raw.toLowerCase()] ?? 'none';
 }
 
-/**
- * Normalize billing interval
- * @description Maps 'month'/'year' to 'monthly'/'yearly'. Defaults to 'monthly' for unknown values or non-string input.
- */
 export function normalizeBillingCycle(interval: string): BillingCycle {
   if (typeof interval !== 'string') return 'monthly';
   const normalized = interval.toLowerCase();

@@ -1,8 +1,5 @@
-/**
- * Infrastructure Layer
- * Subpath: @umituz/web-polar-payment/infrastructure
- */
-
 export * from './services/firebase-billing.service';
 export * from './constants/billing.constants';
 export * from './utils/normalization.util';
+export * from './utils/validations.util';
+export * from './utils/firebase-helpers.util';

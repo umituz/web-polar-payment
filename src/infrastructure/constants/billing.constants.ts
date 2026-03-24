@@ -1,9 +1,3 @@
-/**
- * Billing Constants
- * @description Standardized subscription states and plan names
- */
-
-// Object.freeze() prevents accidental mutations and enables V8 optimizations
 export const SUBSCRIPTION_STATUS = Object.freeze({
   ACTIVE: 'active' as const,
   CANCELED: 'canceled' as const,

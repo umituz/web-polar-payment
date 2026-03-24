@@ -21,10 +21,6 @@ export interface PolarContextValue {
 
 export const PolarContext = createContext<PolarContextValue | undefined>(undefined);
 
-/**
- * usePolarBilling Hook
- * @description Hook to access Polar billing context
- */
 export function usePolarBilling(): PolarContextValue {
   const ctx = useContext(PolarContext);
   if (!ctx) throw new Error('usePolarBilling must be used within <PolarProvider>');
