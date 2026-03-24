@@ -1,6 +1,6 @@
 {
   "name": "@umituz/web-polar-payment",
-  "version": "1.0.16",
+  "version": "1.0.17",
   "description": "Universal Polar.sh subscription billing — Firebase adapter",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
@@ -41,6 +41,14 @@
   ],
   "author": "umituz",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/umituz/web-polar-payment"
+  },
+  "bugs": {
+    "url": "https://github.com/umituz/web-polar-payment/issues"
+  },
+  "homepage": "https://github.com/umituz/web-polar-payment#readme",
   "peerDependencies": {
     "react": ">=19.0.0",
     "react-dom": ">=19.0.0"
