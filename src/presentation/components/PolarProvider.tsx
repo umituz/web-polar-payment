@@ -60,7 +60,6 @@ export function PolarProvider({ adapter, userId, children }: PolarProviderProps)
       if (refreshMountedRef.current) setStatus(s);
     } catch (err) {
       if (refreshMountedRef.current) {
-        console.error('[polar-billing] getStatus failed:', err);
         setStatus(FREE_STATUS);
       }
     } finally {
@@ -87,7 +86,7 @@ export function PolarProvider({ adapter, userId, children }: PolarProviderProps)
     }
 
     if (isProductionInsecureUrl(result.url)) {
-      console.warn('[polar-billing] WARNING: Using insecure http:// URL in production environment');
+      throw new Error('[polar-billing] ERROR: Using insecure http:// URL in production environment');
     }
 
     window.location.href = result.url;

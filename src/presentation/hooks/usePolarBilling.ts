@@ -26,5 +26,3 @@ export function usePolarBilling(): PolarContextValue {
   if (!ctx) throw new Error('usePolarBilling must be used within <PolarProvider>');
   return ctx;
 }
-
-export const useSubscription = usePolarBilling;

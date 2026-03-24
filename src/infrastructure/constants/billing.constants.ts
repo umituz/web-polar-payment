@@ -19,5 +19,3 @@ export const SUBSCRIPTION_STATUS = Object.freeze({
   UNPAID: 'unpaid';
   NONE: 'none';
 }>;
-
-export const FREE_PLAN = 'free';

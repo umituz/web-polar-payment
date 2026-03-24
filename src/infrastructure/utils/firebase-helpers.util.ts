@@ -13,6 +13,6 @@ export function isTimestamp(value: unknown): value is { toDate(): Date } {
     typeof value === 'object' &&
     value !== null &&
     'toDate' in value &&
-    typeof (value as { toDate: unknown }).toDate === 'function'
+    'function' === typeof (value as { toDate?: unknown }).toDate
   );
 }
