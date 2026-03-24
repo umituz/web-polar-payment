@@ -9,37 +9,8 @@ import type {
   SyncResult,
 } from '../../domain/entities';
 import { normalizeStatus, normalizeBillingCycle } from '../utils/normalization.util';
+import { asString, asBoolean, isTimestamp } from '../utils/firebase-helpers.util';
 
-/**
- * Type guard to safely extract string value from unknown Firestore data
- */
-function asString(value: unknown): string | undefined {
-  if (typeof value === 'string') return value;
-  return undefined;
-}
-
-/**
- * Type guard to safely extract boolean value from unknown Firestore data
- */
-function asBoolean(value: unknown): boolean | undefined {
-  if (typeof value === 'boolean') return value;
-  return undefined;
-}
-
-/**
- * Type guard to safely check if value is an object with toDate method
- */
-function isTimestamp(value: unknown): value is { toDate(): Date } {
-  return (
-    typeof value === 'object' &&
-    value !== null &&
-    'toDate' in value &&
-    typeof (value as { toDate: unknown }).toDate === 'function'
-  );
-}
-
-// Internal type aliases for Firebase SDK compatibility
-// Using 'any' internally to avoid DTS build issues with external Firebase packages
 type FirebaseFunctions = any;
 type FirebaseFirestore = any;
 
@@ -67,12 +38,7 @@ export interface FirebaseAdapterConfig {
   };
 }
 
-/**
- * Firebase Billing Service
- * @description Implementation of PolarAdapter for Firebase Functions and Firestore.
- */
 export function createFirebaseAdapter(config: FirebaseAdapterConfig): PolarAdapter {
-  // Cast internally to Firebase types for implementation
   const functions = config.functions as FirebaseFunctions;
   const firestore = config.firestore as FirebaseFirestore;
 
@@ -95,8 +61,6 @@ export function createFirebaseAdapter(config: FirebaseAdapterConfig): PolarAdapt
     currentPeriodEnd: config.db?.currentPeriodEndField ?? 'currentPeriodEnd',
   };
 
-  // Cache imports to avoid repeated dynamic import overhead
-  // Reduces latency on subsequent calls and GC pressure
   let httpsCallableCache: typeof import('firebase/functions')['httpsCallable'] | null = null;
   let firestoreCache: { doc: any; getDoc: any } | null = null;
 
@@ -176,13 +140,11 @@ export function createFirebaseAdapter(config: FirebaseAdapterConfig): PolarAdapt
     },
 
     async getPortalUrl(_userId: string): Promise<string> {
-      const result = await callable<Record<string, never>, { url?: string; customerPortalUrl?: string }>(
+      const result = await callable<Record<string, never>, { url: string }>(
         callables.portal,
         {},
       );
-      const url = result.url ?? result.customerPortalUrl;
-      if (!url) throw new Error('No portal URL returned from Cloud Function');
-      return url;
+      return result.url;
     },
   };
 }

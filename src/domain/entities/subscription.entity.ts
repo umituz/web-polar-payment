@@ -1,8 +1,3 @@
-/**
- * Subscription Entity
- * @description Types for subscription status and billing cycles
- */
-
 export type SubscriptionStatusValue =
   | 'active'
   | 'canceled'
@@ -24,6 +19,5 @@ export interface SubscriptionStatus {
   currentPeriodEnd?: string;
   billingCycle?: BillingCycle;
   polarCustomerId?: string;
-  /** Token balance (for token-based projects like Aria) */
   tokens?: number;
 }
