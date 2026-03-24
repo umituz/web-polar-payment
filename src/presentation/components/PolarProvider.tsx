@@ -42,12 +42,23 @@ function normalizeUserId(userId: string | undefined): string | undefined {
 export function PolarProvider({ adapter, userId, children }: PolarProviderProps) {
   const [status, setStatus] = useState<SubscriptionStatus>(FREE_STATUS);
   const [loading, setLoading] = useState(true);
+
+  // Store adapter and setters in refs to create stable callbacks
   const adapterRef = useRef(adapter);
-  adapterRef.current = adapter;
+  const statusRef = useRef({ setStatus, setLoading });
+  const userIdRef = useRef(normalizeUserId(userId));
   const refreshAbortRef = useRef<AbortController | null>(null);
 
+  // Keep refs in sync
+  adapterRef.current = adapter;
+  statusRef.current = { setStatus, setLoading };
+  userIdRef.current = normalizeUserId(userId);
+
+  // Stable refresh function with no dependencies - prevents cascading re-renders
   const refresh = useCallback(async () => {
-    const uid = normalizeUserId(userId);
+    const uid = userIdRef.current;
+    const { setStatus, setLoading } = statusRef.current;
+
     if (!uid) {
       setStatus(FREE_STATUS);
       setLoading(false);
@@ -70,37 +81,37 @@ export function PolarProvider({ adapter, userId, children }: PolarProviderProps)
     } finally {
       if (!ctrl.signal.aborted) setLoading(false);
     }
-  }, [userId]);
+  }, []); // No dependencies - completely stable
 
   useEffect(() => {
     refresh();
     return () => { refreshAbortRef.current?.abort(); };
-  }, [refresh]);
+  }, [refresh]); // Only re-run if refresh identity changes (never)
 
   const startCheckout = useCallback(async (params: CheckoutParams) => {
-    const uid = normalizeUserId(userId);
-    const result = await adapterRef.current.createCheckout({ ...params, userId: uid });
+    const uid = userIdRef.current;
+    const result = await adapterRef.current.createCheckout({ ...params, userId: uid ?? undefined });
     if (!result.url.startsWith('https://')) {
       throw new Error('[polar-billing] Invalid checkout URL returned: URL must start with https://');
     }
     window.location.href = result.url;
-  }, [userId]);
+  }, []); // No dependencies - stable
 
   const syncSubscription = useCallback(async (): Promise<SyncResult> => {
-    const uid = normalizeUserId(userId);
+    const uid = userIdRef.current;
     if (!uid) return { synced: false };
 
     const checkoutId = new URLSearchParams(window.location.search).get('checkout_id') ?? undefined;
     const result = await adapterRef.current.syncSubscription(uid, checkoutId);
     if (result.synced) await refresh();
     return result;
-  }, [userId, refresh]);
+  }, [refresh]); // Only depends on stable refresh
 
   const getBillingHistory = useCallback(async (): Promise<OrderItem[]> => {
-    const uid = normalizeUserId(userId);
+    const uid = userIdRef.current;
     if (!uid) return [];
     return adapterRef.current.getBillingHistory(uid);
-  }, [userId]);
+  }, []); // No dependencies - stable
 
   const cancelSubscription = useCallback(
     async (reason?: CancellationReason): Promise<CancelResult> => {
@@ -108,15 +119,17 @@ export function PolarProvider({ adapter, userId, children }: PolarProviderProps)
       if (result.success) await refresh();
       return result;
     },
-    [refresh],
+    [refresh], // Only depends on stable refresh
   );
 
   const getPortalUrl = useCallback(async (): Promise<string> => {
-    const uid = normalizeUserId(userId);
+    const uid = userIdRef.current;
     if (!uid) throw new Error('[polar-billing] Cannot get portal URL: No authenticated user');
     return adapterRef.current.getPortalUrl(uid);
-  }, [userId]);
+  }, []); // No dependencies - stable
 
+  // Memoized context value - only recreates when status/loading changes
+  // All functions are stable, so they don't trigger re-creation
   const value = useMemo(
     () => ({
       status,
@@ -128,7 +141,7 @@ export function PolarProvider({ adapter, userId, children }: PolarProviderProps)
       cancelSubscription,
       getPortalUrl,
     }),
-    [status, loading, refresh, startCheckout, syncSubscription, getBillingHistory, cancelSubscription, getPortalUrl],
+    [status, loading, refresh, syncSubscription], // startCheckout, getBillingHistory, cancelSubscription, getPortalUrl are stable
   );
 
   return <PolarContext.Provider value={value}>{children}</PolarContext.Provider>;

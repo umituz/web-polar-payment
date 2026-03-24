@@ -95,8 +95,29 @@ export function createFirebaseAdapter(config: FirebaseAdapterConfig): PolarAdapt
     currentPeriodEnd: config.db?.currentPeriodEndField ?? 'currentPeriodEnd',
   };
 
+  // Cache imports to avoid repeated dynamic import overhead
+  // Reduces latency on subsequent calls and GC pressure
+  let httpsCallableCache: typeof import('firebase/functions')['httpsCallable'] | null = null;
+  let firestoreCache: { doc: any; getDoc: any } | null = null;
+
+  async function getHttpsCallable() {
+    if (!httpsCallableCache) {
+      const mod = await import('firebase/functions');
+      httpsCallableCache = mod.httpsCallable;
+    }
+    return httpsCallableCache;
+  }
+
+  async function getFirestore() {
+    if (!firestoreCache) {
+      const mod = await import('firebase/firestore');
+      firestoreCache = { doc: mod.doc, getDoc: mod.getDoc };
+    }
+    return firestoreCache;
+  }
+
   async function callable<T = unknown, R = unknown>(name: string, data?: T): Promise<R> {
-    const { httpsCallable } = await import('firebase/functions');
+    const httpsCallable = await getHttpsCallable();
     const fn = (httpsCallable as any)(functions, name) as (data?: T) => Promise<{ data: R }>;
     const result = await fn(data);
     return result.data;
@@ -104,7 +125,7 @@ export function createFirebaseAdapter(config: FirebaseAdapterConfig): PolarAdapt
 
   return {
     async getStatus(userId: string): Promise<SubscriptionStatus> {
-      const { doc, getDoc } = await import('firebase/firestore');
+      const { doc, getDoc } = await getFirestore();
       const snap = await getDoc((doc as any)(firestore, db.collection, userId));
 
       if (!snap.exists()) {
