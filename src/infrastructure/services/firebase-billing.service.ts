@@ -11,13 +11,13 @@ import type {
 import { normalizeStatus, normalizeBillingCycle } from '../utils/normalization.util';
 import { asString, asBoolean, isTimestamp } from '../utils/firebase-helpers.util';
 
-type FirebaseFunctions = any;
-type FirebaseFirestore = any;
+type FirestoreDoc = (firestore: unknown, collectionPath: string, docId: string) => unknown;
+type FirestoreGetDoc = (ref: unknown) => Promise<{ exists: boolean; data(): Record<string, unknown> }>;
+type HttpsCallableFn = <T = unknown, R = unknown>(data?: T) => Promise<{ data: R }>;
+type HttpsCallable = (name: string) => HttpsCallableFn;
 
 export interface FirebaseAdapterConfig {
-  /** Firebase Functions instance from firebase/functions */
   functions: unknown;
-  /** Firebase Firestore instance from firebase/firestore */
   firestore: unknown;
   callables?: {
     createCheckout?: string;
@@ -39,8 +39,8 @@ export interface FirebaseAdapterConfig {
 }
 
 export function createFirebaseAdapter(config: FirebaseAdapterConfig): PolarAdapter {
-  const functions = config.functions as FirebaseFunctions;
-  const firestore = config.firestore as FirebaseFirestore;
+  const functions = config.functions;
+  const firestore = config.firestore;
 
   const callables = {
     createCheckout: config.callables?.createCheckout ?? 'createCheckoutSession',
@@ -61,28 +61,28 @@ export function createFirebaseAdapter(config: FirebaseAdapterConfig): PolarAdapt
     currentPeriodEnd: config.db?.currentPeriodEndField ?? 'currentPeriodEnd',
   };
 
-  let httpsCallableCache: typeof import('firebase/functions')['httpsCallable'] | null = null;
-  let firestoreCache: { doc: any; getDoc: any } | null = null;
+  let httpsCallableCache: HttpsCallable | null = null;
+  let firestoreCache: { doc: FirestoreDoc; getDoc: FirestoreGetDoc } | null = null;
 
-  async function getHttpsCallable() {
+  async function getHttpsCallable(): Promise<HttpsCallable> {
     if (!httpsCallableCache) {
       const mod = await import('firebase/functions');
-      httpsCallableCache = mod.httpsCallable;
+      httpsCallableCache = mod.httpsCallable(functions) as HttpsCallable;
     }
     return httpsCallableCache;
   }
 
-  async function getFirestore() {
+  async function getFirestore(): Promise<{ doc: FirestoreDoc; getDoc: FirestoreGetDoc }> {
     if (!firestoreCache) {
       const mod = await import('firebase/firestore');
-      firestoreCache = { doc: mod.doc, getDoc: mod.getDoc };
+      firestoreCache = { doc: mod.doc as FirestoreDoc, getDoc: mod.getDoc as FirestoreGetDoc };
     }
     return firestoreCache;
   }
 
   async function callable<T = unknown, R = unknown>(name: string, data?: T): Promise<R> {
     const httpsCallable = await getHttpsCallable();
-    const fn = (httpsCallable as any)(functions, name) as (data?: T) => Promise<{ data: R }>;
+    const fn = httpsCallable(name) as (data?: T) => Promise<{ data: R }>;
     const result = await fn(data);
     return result.data;
   }
@@ -90,13 +90,15 @@ export function createFirebaseAdapter(config: FirebaseAdapterConfig): PolarAdapt
   return {
     async getStatus(userId: string): Promise<SubscriptionStatus> {
       const { doc, getDoc } = await getFirestore();
-      const snap = await getDoc((doc as any)(firestore, db.collection, userId));
+      const docRef = doc(firestore, db.collection, userId);
+      const snap = await getDoc(docRef);
 
-      if (!snap.exists()) {
+      const exists = (snap as { exists: boolean }).exists;
+      if (!exists) {
         return { plan: 'free', subscriptionStatus: 'none' };
       }
 
-      const d = snap.data() as Record<string, unknown>;
+      const d = snap.data();
 
       let currentPeriodEnd: string | undefined;
       const rawEnd = d[db.currentPeriodEnd];
@@ -123,14 +125,14 @@ export function createFirebaseAdapter(config: FirebaseAdapterConfig): PolarAdapt
       return callable<CheckoutParams, CheckoutResult>(callables.createCheckout, params);
     },
 
-    async syncSubscription(_userId: string, _checkoutId?: string): Promise<SyncResult> {
-      return callable<Record<string, never>, SyncResult>(callables.sync, {});
+    async syncSubscription(userId: string, checkoutId?: string): Promise<SyncResult> {
+      return callable<{ userId: string; checkoutId?: string }, SyncResult>(callables.sync, { userId, checkoutId });
     },
 
-    async getBillingHistory(_userId: string): Promise<OrderItem[]> {
-      const result = await callable<Record<string, never>, { orders?: OrderItem[] }>(
+    async getBillingHistory(userId: string): Promise<OrderItem[]> {
+      const result = await callable<{ userId: string }, { orders?: OrderItem[] }>(
         callables.billing,
-        {},
+        { userId },
       );
       return result.orders ?? [];
     },
@@ -139,10 +141,10 @@ export function createFirebaseAdapter(config: FirebaseAdapterConfig): PolarAdapt
       return callable<{ reason?: string }, CancelResult>(callables.cancel, { reason });
     },
 
-    async getPortalUrl(_userId: string): Promise<string> {
-      const result = await callable<Record<string, never>, { url: string }>(
+    async getPortalUrl(userId: string): Promise<string> {
+      const result = await callable<{ userId: string }, { url: string }>(
         callables.portal,
-        {},
+        { userId },
       );
       return result.url;
     },
