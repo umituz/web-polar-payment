@@ -13,8 +13,6 @@ import { asString, asBoolean, isTimestamp } from '../utils/firebase-helpers.util
 
 type FirestoreDoc = (firestore: unknown, collectionPath: string, docId: string) => unknown;
 type FirestoreGetDoc = (ref: unknown) => Promise<{ exists: boolean; data(): Record<string, unknown> }>;
-type HttpsCallableFn = <T = unknown, R = unknown>(data?: T) => Promise<{ data: R }>;
-type HttpsCallable = (name: string) => HttpsCallableFn;
 
 export interface FirebaseAdapterConfig {
   functions: unknown;
@@ -36,6 +34,20 @@ export interface FirebaseAdapterConfig {
     cancelAtPeriodEndField?: string;
     currentPeriodEndField?: string;
   };
+}
+
+/**
+ * Custom error class for Firebase billing operations
+ */
+export class FirebaseBillingError extends Error {
+  constructor(
+    message: string,
+    public code?: string,
+    public originalError?: unknown
+  ) {
+    super(message);
+    this.name = 'FirebaseBillingError';
+  }
 }
 
 export function createFirebaseAdapter(config: FirebaseAdapterConfig): PolarAdapter {
@@ -61,16 +73,7 @@ export function createFirebaseAdapter(config: FirebaseAdapterConfig): PolarAdapt
     currentPeriodEnd: config.db?.currentPeriodEndField ?? 'currentPeriodEnd',
   };
 
-  let httpsCallableCache: HttpsCallable | null = null;
   let firestoreCache: { doc: FirestoreDoc; getDoc: FirestoreGetDoc } | null = null;
-
-  async function getHttpsCallable(): Promise<HttpsCallable> {
-    if (!httpsCallableCache) {
-      const mod = await import('firebase/functions');
-      httpsCallableCache = mod.httpsCallable(functions) as HttpsCallable;
-    }
-    return httpsCallableCache;
-  }
 
   async function getFirestore(): Promise<{ doc: FirestoreDoc; getDoc: FirestoreGetDoc }> {
     if (!firestoreCache) {
@@ -80,73 +83,153 @@ export function createFirebaseAdapter(config: FirebaseAdapterConfig): PolarAdapt
     return firestoreCache;
   }
 
+  /**
+   * Call a Firebase callable function with proper error handling
+   */
   async function callable<T = unknown, R = unknown>(name: string, data?: T): Promise<R> {
-    const httpsCallable = await getHttpsCallable();
-    const fn = httpsCallable(name) as (data?: T) => Promise<{ data: R }>;
-    const result = await fn(data);
-    return result.data;
+    try {
+      const { httpsCallable: hc } = await import('firebase/functions');
+      const fn = hc(functions, name) as (data?: T) => Promise<{ data: R }>;
+      const result = await fn(data);
+      return result.data;
+    } catch (error) {
+      // Handle Firebase Functions errors
+      if (error && typeof error === 'object') {
+        const err = error as { code?: string; message?: string };
+        throw new FirebaseBillingError(
+          err.message || `Function ${name} failed`,
+          err.code,
+          error
+        );
+      }
+      throw new FirebaseBillingError(
+        `Unknown error calling ${name}`,
+        'unknown',
+        error
+      );
+    }
+  }
+
+  /**
+   * Validate userId is not empty
+   */
+  function validateUserId(userId: string | undefined): void {
+    if (!userId || typeof userId !== 'string' || userId.trim() === '') {
+      throw new FirebaseBillingError('User ID is required and cannot be empty', 'invalid-argument');
+    }
   }
 
   return {
     async getStatus(userId: string): Promise<SubscriptionStatus> {
-      const { doc, getDoc } = await getFirestore();
-      const docRef = doc(firestore, db.collection, userId);
-      const snap = await getDoc(docRef);
+      try {
+        const { doc, getDoc } = await getFirestore();
+        const docRef = doc(firestore, db.collection, userId);
+        const snap = await getDoc(docRef);
 
-      const exists = (snap as { exists: boolean }).exists;
-      if (!exists) {
-        return { plan: 'free', subscriptionStatus: 'none' };
-      }
-
-      const d = snap.data();
-
-      let currentPeriodEnd: string | undefined;
-      const rawEnd = d[db.currentPeriodEnd];
-      if (rawEnd != null) {
-        if (isTimestamp(rawEnd)) {
-          currentPeriodEnd = rawEnd.toDate().toISOString();
-        } else if (typeof rawEnd === 'string') {
-          currentPeriodEnd = rawEnd;
+        const exists = (snap as { exists: boolean }).exists;
+        if (!exists) {
+          return { plan: 'free', subscriptionStatus: 'none' };
         }
-      }
 
-      return {
-        plan: asString(d[db.plan]) ?? 'free',
-        billingCycle: normalizeBillingCycle(asString(d[db.billingCycle]) ?? 'monthly'),
-        subscriptionId: asString(d[db.subscriptionId]),
-        subscriptionStatus: normalizeStatus(asString(d[db.subscriptionStatus]) ?? 'none'),
-        polarCustomerId: asString(d[db.polarCustomerId]),
-        cancelAtPeriodEnd: asBoolean(d[db.cancelAtPeriodEnd]),
-        currentPeriodEnd,
-      };
+        const d = snap.data();
+
+        let currentPeriodEnd: string | undefined;
+        const rawEnd = d[db.currentPeriodEnd];
+        if (rawEnd != null) {
+          if (isTimestamp(rawEnd)) {
+            currentPeriodEnd = rawEnd.toDate().toISOString();
+          } else if (typeof rawEnd === 'string') {
+            currentPeriodEnd = rawEnd;
+          }
+        }
+
+        return {
+          plan: asString(d[db.plan]) ?? 'free',
+          billingCycle: normalizeBillingCycle(asString(d[db.billingCycle]) ?? 'monthly'),
+          subscriptionId: asString(d[db.subscriptionId]),
+          subscriptionStatus: normalizeStatus(asString(d[db.subscriptionStatus]) ?? 'none'),
+          polarCustomerId: asString(d[db.polarCustomerId]),
+          cancelAtPeriodEnd: asBoolean(d[db.cancelAtPeriodEnd]),
+          currentPeriodEnd,
+        };
+      } catch (error) {
+        if (error instanceof FirebaseBillingError) throw error;
+        throw new FirebaseBillingError('Failed to load subscription status', 'status-load-failed', error);
+      }
     },
 
     async createCheckout(params: CheckoutParams): Promise<CheckoutResult> {
-      return callable<CheckoutParams, CheckoutResult>(callables.createCheckout, params);
+      // Validate checkout params
+      if (!params.productId || typeof params.productId !== 'string' || params.productId.trim() === '') {
+        throw new FirebaseBillingError('Product ID is required', 'invalid-argument');
+      }
+
+      try {
+        return await callable<CheckoutParams, CheckoutResult>(callables.createCheckout, params);
+      } catch (error) {
+        if (error instanceof FirebaseBillingError) throw error;
+        throw new FirebaseBillingError('Failed to create checkout session', 'checkout-failed', error);
+      }
     },
 
     async syncSubscription(userId: string, checkoutId?: string): Promise<SyncResult> {
-      return callable<{ userId: string; checkoutId?: string }, SyncResult>(callables.sync, { userId, checkoutId });
+      validateUserId(userId);
+
+      try {
+        return await callable<{ userId: string; checkoutId?: string }, SyncResult>(
+          callables.sync,
+          { userId, checkoutId }
+        );
+      } catch (error) {
+        if (error instanceof FirebaseBillingError) throw error;
+        throw new FirebaseBillingError('Failed to sync subscription', 'sync-failed', error);
+      }
     },
 
     async getBillingHistory(userId: string): Promise<OrderItem[]> {
-      const result = await callable<{ userId: string }, { orders?: OrderItem[] }>(
-        callables.billing,
-        { userId },
-      );
-      return result.orders ?? [];
+      validateUserId(userId);
+
+      try {
+        const result = await callable<{ userId: string }, { orders?: OrderItem[] }>(
+          callables.billing,
+          { userId }
+        );
+        return result.orders ?? [];
+      } catch (error) {
+        if (error instanceof FirebaseBillingError) throw error;
+        // Return empty array on error instead of throwing
+        console.error('[FirebaseBilling] Failed to load billing history:', error);
+        return [];
+      }
     },
 
     async cancelSubscription(reason?: CancellationReason): Promise<CancelResult> {
-      return callable<{ reason?: string }, CancelResult>(callables.cancel, { reason });
+      try {
+        return await callable<{ reason?: string }, CancelResult>(callables.cancel, { reason });
+      } catch (error) {
+        if (error instanceof FirebaseBillingError) throw error;
+        throw new FirebaseBillingError('Failed to cancel subscription', 'cancel-failed', error);
+      }
     },
 
     async getPortalUrl(userId: string): Promise<string> {
-      const result = await callable<{ userId: string }, { url: string }>(
-        callables.portal,
-        { userId },
-      );
-      return result.url;
+      validateUserId(userId);
+
+      try {
+        const result = await callable<{ userId: string }, { url: string }>(
+          callables.portal,
+          { userId }
+        );
+
+        if (!result?.url || typeof result.url !== 'string') {
+          throw new FirebaseBillingError('Invalid portal URL returned', 'invalid-response');
+        }
+
+        return result.url;
+      } catch (error) {
+        if (error instanceof FirebaseBillingError) throw error;
+        throw new FirebaseBillingError('Failed to get customer portal URL', 'portal-failed', error);
+      }
     },
   };
 }
