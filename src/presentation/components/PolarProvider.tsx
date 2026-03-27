@@ -79,17 +79,30 @@ export function PolarProvider({ adapter, userId, children }: PolarProviderProps)
     }
 
     const uid = userIdRef.current;
-    const result = await adapterRef.current.createCheckout({ ...params, userId: uid ?? undefined });
-
-    if (!isValidCheckoutUrl(result.url)) {
-      throw new Error('[polar-billing] Invalid checkout URL returned: URL must start with https:// or http://');
+    if (!uid) {
+      throw new Error('[polar-billing] Cannot start checkout: No authenticated user');
     }
 
-    if (isProductionInsecureUrl(result.url)) {
-      throw new Error('[polar-billing] ERROR: Using insecure http:// URL in production environment');
-    }
+    try {
+      const result = await adapterRef.current.createCheckout({ ...params, userId: uid });
 
-    window.location.href = result.url;
+      if (!isValidCheckoutUrl(result.url)) {
+        throw new Error('[polar-billing] Invalid checkout URL returned: URL must start with https:// or http://');
+      }
+
+      if (isProductionInsecureUrl(result.url)) {
+        throw new Error('[polar-billing] ERROR: Using insecure http:// URL in production environment');
+      }
+
+      // Navigate to checkout URL
+      window.location.href = result.url;
+    } catch (error) {
+      // Re-throw with additional context
+      if (error instanceof Error) {
+        throw new Error(`[polar-billing] Checkout failed: ${error.message}`);
+      }
+      throw error;
+    }
   }, []);
 
   const syncSubscription = useCallback(async (): Promise<SyncResult> => {
