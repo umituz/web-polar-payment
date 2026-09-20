@@ -245,9 +245,6 @@ npm run build       # tsup — CJS + ESM + d.ts for every subpath entry
 npm pack --dry-run  # inspect the publishable tarball
 ```
 
-CI (`.github/workflows/ci.yml`) runs install → typecheck → lint → test →
-build → pack on Node 18/20/22, plus a non-blocking React 19 canary.
-
 ## License
 
 MIT

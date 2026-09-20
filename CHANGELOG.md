@@ -3,12 +3,12 @@
 All notable changes to `@umituz/web-polar-payment` are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [2.0.0] — 2026-09-20
+## [1.0.23] — 2026-09-20
 
 The platform release: subpath entries with real dependency isolation, a
-normalized error contract, abortable I/O, a full test suite, and CI.
-Also carries the earlier 2.0-scale refactor (camelCase domain, repository
-split, adapter-based provider) that was staged under Unreleased.
+normalized error contract, abortable I/O, and a full test suite. Also
+carries the earlier refactor (camelCase domain, repository split,
+adapter-based provider) that was staged under Unreleased.
 
 ### Added
 - **Subpath exports** with per-surface dependency isolation:
@@ -99,10 +99,13 @@ split, adapter-based provider) that was staged under Unreleased.
   `security.util.ts`).
 - Dead barrel files (`src/infrastructure/index.ts`,
   `src/presentation/index.ts`) and the `any`-masking `declarations.d.ts`.
+- The `firebase-billing.service.ts` backwards-compat shim — its public
+  surface moved to `createFirebaseAdapter` (via the `./firebase` subpath);
+  the shim had no consumers and only invited deep imports.
 - `./domain`, `./infrastructure`, `./presentation` subpath exports (they
   pointed at TS sources and could not resolve at runtime).
 
-### Migration guide (1.0.x → 2.0.0)
+### Migration guide (1.0.22 → 1.0.23)
 1. **Snake_case accessors**: `product.recurring_interval` →
    `product.recurringInterval` (see `PolarProduct`). If you consumed raw
    Polar API objects, map them through `mapProduct` first.
