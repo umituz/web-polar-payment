@@ -1,16 +1,21 @@
-export { PolarProvider } from './presentation/components/PolarProvider';
-export { usePolarBilling } from './presentation/hooks/usePolarBilling';
-export { usePolarProducts } from './presentation/hooks/usePolarProducts';
-export type { PolarContextValue } from './presentation/hooks/usePolarBilling';
-export type { UsePolarProductsOptions, UsePolarProductsResult } from './presentation/hooks/usePolarProducts';
-export { createFirebaseAdapter } from './infrastructure/services/firebase-billing.service';
-export type { FirebaseAdapterConfig } from './infrastructure/services/firebase-billing.service';
-export { SUBSCRIPTION_STATUS } from './infrastructure/constants/billing.constants';
-export type { SubscriptionStatusValue, BillingCycle } from './domain/entities/subscription.entity';
-export type { SubscriptionStatus, CheckoutParams, CheckoutResult, OrderItem, CancellationReason, CancelResult, SyncResult } from './domain/entities';
-export type { PolarAdapter } from './domain/interfaces';
+/**
+ * Public SDK surface — `@umituz/web-polar-payment` (root entry).
+ *
+ * Re-exports every subpath entry. This preserves the historical
+ * single-entry import style; consumers that want a smaller dependency
+ * footprint can import the specific entries instead:
+ *
+ *   - `@umituz/web-polar-payment/core`     — types + adapter contract (no React, no Firebase)
+ *   - `@umituz/web-polar-payment/products` — Polar.sh product catalog API
+ *   - `@umituz/web-polar-payment/firebase` — Firebase adapter (optional `firebase` peer)
+ *   - `@umituz/web-polar-payment/react`    — provider, hooks, components
+ *
+ * The root entry requires React (it re-exports the React layer), so
+ * non-React applications should import from `core` / `products` /
+ * `firebase` directly.
+ */
 
-// Product API
-export { getProducts, getProductById, getAllProducts } from './infrastructure/services/polar-api.service';
-export type { PolarApiConfig } from './infrastructure/services/polar-api.service';
-export type { PolarProduct, PolarPrice, ProductListResponse, ProductListParams, RecurringInterval, PriceType } from './domain/entities/product.entity';
+export * from './core';
+export * from './products';
+export * from './firebase';
+export * from './react';

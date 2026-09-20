@@ -1,7 +1,7 @@
 {
   "name": "@umituz/web-polar-payment",
-  "version": "1.0.22",
-  "description": "Universal Polar.sh subscription billing — Firebase adapter",
+  "version": "2.0.0",
+  "description": "Universal Polar.sh subscription billing — adapter-based, framework-agnostic core with React bindings",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
   "types": "./dist/index.d.ts",
@@ -15,29 +15,56 @@
       "import": "./dist/index.mjs",
       "require": "./dist/index.js"
     },
-    "./domain": "./src/domain/index.ts",
-    "./infrastructure": "./src/infrastructure/index.ts",
-    "./presentation": "./src/presentation/index.ts"
+    "./core": {
+      "types": "./dist/core.d.ts",
+      "import": "./dist/core.mjs",
+      "require": "./dist/core.js"
+    },
+    "./products": {
+      "types": "./dist/products.d.ts",
+      "import": "./dist/products.mjs",
+      "require": "./dist/products.js"
+    },
+    "./firebase": {
+      "types": "./dist/firebase.d.ts",
+      "import": "./dist/firebase.mjs",
+      "require": "./dist/firebase.js"
+    },
+    "./react": {
+      "types": "./dist/react.d.ts",
+      "import": "./dist/react.mjs",
+      "require": "./dist/react.js"
+    },
+    "./package.json": "./package.json"
   },
   "files": [
     "dist",
     "src"
   ],
   "scripts": {
-    "build": "tsup src/index.ts --format cjs,esm --dts --clean --external firebase --external firebase/functions --external firebase/firestore",
-    "dev": "tsup src/index.ts --format cjs,esm --dts --watch --external firebase --external firebase/functions --external firebase/firestore",
-    "lint": "tsc --noEmit",
+    "build": "tsup src/index.ts src/core.ts src/products.ts src/firebase.ts src/react.tsx --format cjs,esm --dts --clean --external firebase --external firebase/functions --external firebase/firestore",
+    "dev": "tsup src/index.ts src/core.ts src/products.ts src/firebase.ts src/react.tsx --format cjs,esm --dts --watch --external firebase --external firebase/functions --external firebase/firestore",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "prepublishOnly": "npm run build",
     "version:patch": "npm version patch -m 'chore: release v%s'",
     "version:minor": "npm version minor -m 'chore: release v%s'",
     "version:major": "npm version major -m 'chore: release v%s'"
+  },
+  "engines": {
+    "node": ">=18.0.0"
   },
   "keywords": [
     "polar",
     "subscription",
     "billing",
     "firebase",
-    "react"
+    "react",
+    "adapter",
+    "facade",
+    "repository"
   ],
   "author": "umituz",
   "license": "MIT",
@@ -50,14 +77,33 @@
   },
   "homepage": "https://github.com/umituz/web-polar-payment#readme",
   "peerDependencies": {
-    "react": ">=19.0.0",
-    "react-dom": ">=19.0.0"
+    "firebase": "^10.0.0 || ^11.0.0 || ^12.0.0",
+    "react": ">=18.0.0"
+  },
+  "peerDependenciesMeta": {
+    "firebase": {
+      "optional": true
+    },
+    "react": {
+      "optional": true
+    }
   },
   "devDependencies": {
-    "@types/react": "^19.0.0",
-    "@types/react-dom": "^19.0.0",
+    "@eslint/js": "^9.20.0",
+    "@testing-library/jest-dom": "^7.0.1",
+    "@testing-library/react": "^16.1.0",
+    "@types/react": "^18.3.0",
+    "@types/react-dom": "^18.3.7",
+    "eslint": "^9.20.0",
+    "eslint-plugin-react-hooks": "^5.1.0",
     "firebase": "^12.0.0",
+    "globals": "^15.14.0",
+    "jsdom": "^25.0.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
     "tsup": "^8.0.0",
-    "typescript": "^5.0.0"
+    "typescript": "^5.0.0",
+    "typescript-eslint": "^8.23.0",
+    "vitest": "^3.0.0"
   }
 }

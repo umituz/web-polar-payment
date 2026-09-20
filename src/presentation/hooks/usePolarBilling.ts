@@ -1,28 +1,7 @@
-import { createContext, useContext } from 'react';
-import type {
-  SubscriptionStatus,
-  CheckoutParams,
-  CancellationReason,
-  CancelResult,
-  SyncResult,
-  OrderItem,
-} from '../../domain/entities';
+/**
+ * Re-export hook for backward compatibility. The canonical home of the
+ * context + hook is `presentation/context/polar-context.ts`.
+ */
 
-export interface PolarContextValue {
-  status: SubscriptionStatus;
-  loading: boolean;
-  refresh: () => Promise<void>;
-  startCheckout: (params: CheckoutParams) => Promise<void>;
-  syncSubscription: () => Promise<SyncResult>;
-  getBillingHistory: () => Promise<OrderItem[]>;
-  cancelSubscription: (reason?: CancellationReason) => Promise<CancelResult>;
-  getPortalUrl: () => Promise<string>;
-}
-
-export const PolarContext = createContext<PolarContextValue | undefined>(undefined);
-
-export function usePolarBilling(): PolarContextValue {
-  const ctx = useContext(PolarContext);
-  if (!ctx) throw new Error('usePolarBilling must be used within <PolarProvider>');
-  return ctx;
-}
+export { usePolarBilling } from '../context/polar-context';
+export type { PolarContextValue } from '../context/polar-context';

@@ -1,11 +1,17 @@
 /**
- * usePolarProducts Hook
+ * usePolarProducts — fetches Polar products on the client.
  *
- * Fetch and manage products from Polar.sh API
+ * Caveats:
+ *   - OAT tokens should NOT be shipped to the browser in production. This
+ *     hook is intended for development / server-rendered setups. For
+ *     production, fetch products on the server and pass them down (e.g. to
+ *     `<PricingTable products={…}>`) instead of using this hook.
+ *   - In-flight requests are aborted on unmount and on option change, and a
+ *     superseded response never commits state.
  */
 
-import { useState, useEffect } from 'react';
-import { getAllProducts } from '../../infrastructure/services/polar-api.service';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { getAllProducts } from '../../infrastructure/services/polar-product.repository';
 import type { PolarProduct, ProductListParams } from '../../domain/entities/product.entity';
 
 export interface UsePolarProductsOptions {
@@ -18,66 +24,68 @@ export interface UsePolarProductsOptions {
 export interface UsePolarProductsResult {
   products: PolarProduct[];
   loading: boolean;
-  error: string | null;
+  error: Error | null;
   refetch: () => Promise<void>;
 }
 
-/**
- * Fetch products from Polar.sh API
- *
- * @example
- * ```tsx
- * const { products, loading, error } = usePolarProducts({
- *   apiToken: polarApiToken,
- *   organizationId: polarOrgId,
- *   isRecurring: true,
- * });
- * ```
- */
 export function usePolarProducts(options: UsePolarProductsOptions): UsePolarProductsResult {
   const { apiToken, organizationId, isRecurring = true, enabled = true } = options;
 
   const [products, setProducts] = useState<PolarProduct[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(enabled);
+  const [error, setError] = useState<Error | null>(null);
 
-  const fetchProducts = async () => {
-    if (!enabled) {
+  // Keep the latest options in a ref so `refetch` reads the current values
+  // without re-creating the callback on every render.
+  const optionsRef = useRef({ apiToken, organizationId, isRecurring, enabled });
+  optionsRef.current = { apiToken, organizationId, isRecurring, enabled };
+
+  // Aborts the in-flight request when dependencies change or on unmount.
+  const abortRef = useRef<AbortController | null>(null);
+
+  const fetchProducts = useCallback(async (): Promise<void> => {
+    const { apiToken: token, organizationId: org, isRecurring: recurring, enabled: isEnabled } =
+      optionsRef.current;
+
+    abortRef.current?.abort();
+
+    if (!isEnabled) {
       setLoading(false);
       return;
     }
 
+    const controller = new AbortController();
+    abortRef.current = controller;
+    setLoading(true);
+    setError(null);
+
     try {
-      setLoading(true);
-      setError(null);
+      const params: ProductListParams = { isRecurring: recurring };
+      if (org) params.organizationId = org;
 
-      const params: ProductListParams = {
-        isRecurring,
-      };
+      const data = await getAllProducts({ apiToken: token }, params, {
+        signal: controller.signal,
+      });
 
-      if (organizationId) {
-        params.organizationId = organizationId;
-      }
-
-      const data = await getAllProducts({ apiToken }, params);
+      // Guard: only commit state if this fetch was not superseded/aborted.
+      if (controller.signal.aborted) return;
       setProducts(data);
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to fetch products';
-      setError(message);
-      console.error('usePolarProducts error:', err);
+      if (controller.signal.aborted) return;
+      setError(err instanceof Error ? err : new Error('Failed to fetch products'));
     } finally {
-      setLoading(false);
+      if (!controller.signal.aborted) {
+        setLoading(false);
+      }
     }
-  };
+  }, []);
 
   useEffect(() => {
-    fetchProducts();
-  }, [apiToken, organizationId, isRecurring, enabled]);
+    void fetchProducts();
+    return () => {
+      abortRef.current?.abort();
+    };
+  }, [apiToken, organizationId, isRecurring, enabled, fetchProducts]);
 
-  return {
-    products,
-    loading,
-    error,
-    refetch: fetchProducts,
-  };
+  return { products, loading, error, refetch: fetchProducts };
 }

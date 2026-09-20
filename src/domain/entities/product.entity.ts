@@ -1,56 +1,33 @@
 /**
- * Product Entity
+ * Product entity (public re-exports).
  *
- * Represents a Polar.sh product with pricing information
+ * The canonical domain types live in `domain/mappers/product.mapper.ts`.
+ * This file is kept as a thin facade for backward compatibility — the
+ * SDK's public surface continues to expose `PolarProduct`, `PolarPrice`,
+ * `ProductListResponse`, `ProductListParams`, `RecurringInterval`, and
+ * `PriceType`.
  */
 
+export type {
+  PolarProduct,
+  PolarPrice,
+  PolarBenefit,
+  ProductListResponse,
+  ProductListParams,
+} from '../mappers/product.mapper';
+
+import type { BillingCycle } from '../enums/billing-cycle.enum';
+
+/**
+ * @deprecated Polar products only ever recur on `month` or `year`. Use
+ * `BillingCycle` instead for narrowed types. Kept for backward compatibility.
+ */
 export type RecurringInterval = 'day' | 'week' | 'month' | 'year';
 
+/**
+ * @deprecated Use `PolarAmountType` for the narrowed union of Polar price
+ * amount types. Kept for backward compatibility.
+ */
 export type PriceType = 'fixed' | 'custom' | 'free' | 'seat_based' | 'metered_unit';
 
-export interface PolarPrice {
-  id: string;
-  type: PriceType;
-  amount_type: string;
-  amount?: number;
-  currency: string;
-  recurring_interval?: RecurringInterval;
-  is_archived: boolean;
-  product_id: string;
-  legacy?: boolean;
-}
-
-export interface PolarProduct {
-  id: string;
-  name: string;
-  description: string | null;
-  is_recurring: boolean;
-  recurring_interval: RecurringInterval | null;
-  is_archived: boolean;
-  organization_id: string;
-  prices: PolarPrice[];
-  benefits: Array<{
-    id: string;
-    type: string;
-    description: string | null;
-    properties: Record<string, unknown>;
-  }>;
-  metadata: Record<string, unknown>;
-  created_at: string;
-  modified_at: string | null;
-}
-
-export interface ProductListResponse {
-  items: PolarProduct[];
-  pagination: {
-    total_count: number;
-    max_page: number;
-  };
-}
-
-export interface ProductListParams {
-  organizationId?: string;
-  isRecurring?: boolean;
-  page?: number;
-  limit?: number;
-}
+export type { BillingCycle };

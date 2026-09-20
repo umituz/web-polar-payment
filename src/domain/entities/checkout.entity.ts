@@ -1,7 +1,9 @@
+import type { BillingCycle } from '../enums/billing-cycle.enum';
+
 export interface CheckoutParams {
   productId: string;
   planKey?: string;
-  billingCycle?: 'monthly' | 'yearly';
+  billingCycle?: BillingCycle;
   successUrl?: string;
   userId?: string;
 }

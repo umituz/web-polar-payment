@@ -1,11 +1,5 @@
-# Source maps
+# Source maps (not shipped; kept excluded even if --sourcemap is enabled)
 **/*.map
-**/*.js.map
 
-# TypeScript cache
+# TypeScript build cache
 *.tsbuildinfo
-
-# Development files
-.eslintrc.json
-.prettierrc
-.gitignore

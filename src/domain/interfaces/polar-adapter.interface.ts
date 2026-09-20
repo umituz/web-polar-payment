@@ -8,6 +8,13 @@ import type {
   SyncResult,
 } from '../entities';
 
+/**
+ * PolarAdapter — the single SDK-facing interface.
+ *
+ * Implementations (Firebase, REST, mock, etc.) translate platform-specific
+ * calls into the contract below. The rest of the SDK depends only on this
+ * interface (Dependency Inversion).
+ */
 export interface PolarAdapter {
   getStatus(userId: string): Promise<SubscriptionStatus>;
   createCheckout(params: CheckoutParams): Promise<CheckoutResult>;
