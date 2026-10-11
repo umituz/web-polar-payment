@@ -35,6 +35,11 @@
       "import": "./dist/react.mjs",
       "require": "./dist/react.js"
     },
+    "./portal": {
+      "types": "./dist/portal.d.ts",
+      "import": "./dist/portal.mjs",
+      "require": "./dist/portal.js"
+    },
     "./package.json": "./package.json"
   },
   "files": [
@@ -42,8 +47,8 @@
     "src"
   ],
   "scripts": {
-    "build": "tsup src/index.ts src/core.ts src/products.ts src/firebase.ts src/react.tsx --format cjs,esm --dts --clean --external firebase --external firebase/functions --external firebase/firestore",
-    "dev": "tsup src/index.ts src/core.ts src/products.ts src/firebase.ts src/react.tsx --format cjs,esm --dts --watch --external firebase --external firebase/functions --external firebase/firestore",
+    "build": "tsup src/index.ts src/core.ts src/products.ts src/firebase.ts src/react.tsx src/portal.ts --format cjs,esm --dts --clean --external firebase --external firebase/functions --external firebase/firestore",
+    "dev": "tsup src/index.ts src/core.ts src/products.ts src/firebase.ts src/react.tsx src/portal.ts --format cjs,esm --dts --watch --external firebase --external firebase/functions --external firebase/firestore",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "test": "vitest run",
@@ -87,6 +92,9 @@
     "react": {
       "optional": true
     }
+  },
+  "dependencies": {
+    "lucide-react": "^0.577.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.20.0",
