@@ -54,6 +54,13 @@ import { createFirebaseAdapter } from '@umituz/web-polar-payment/firebase';
 // React layer: provider, hooks, components, theme tokens
 import { PolarProvider, PricingTable } from '@umituz/web-polar-payment/react';
 
+// Server-side Polar.sh operations: checkout sessions, customer portal,
+// subscription management, webhook signature verification (server only!)
+import { PolarBillingClient, verifyPolarWebhook } from '@umituz/web-polar-payment/server';
+
+// Browser PolarAdapter over your own REST endpoints (non-Firebase backends)
+import { createHttpAdapter } from '@umituz/web-polar-payment/http';
+
 // Root entry = everything above (backwards-compatible import paths)
 import { usePolarBilling } from '@umituz/web-polar-payment';
 ```
@@ -157,6 +164,61 @@ Every component takes an optional `labels` subset and `locale`:
   labels={{ statuses: { active: 'Aktiv' }, endsPrefix: 'endet' }}
 />
 ```
+
+### 7. Own REST backend — `./server` + `./http`
+
+When the backend is your own API worker (any runtime with `fetch`), split the
+work with the two transport entry points:
+
+```ts
+// api/billing.ts — server side
+import { PolarBillingClient, verifyPolarWebhook } from '@umituz/web-polar-payment/server';
+
+const polar = new PolarBillingClient({
+  apiToken: env.POLAR_ACCESS_TOKEN!,     // OAT token, server only
+  sandbox: env.POLAR_SANDBOX === 'true', // sandbox-api.polar.sh
+});
+
+// Checkout: POST /v1/checkouts — metadata is copied onto the subscription
+const checkout = await polar.createCheckout({
+  productId,
+  successUrl: `${appUrl}/billing/return?checkout_id={CHECKOUT_ID}`,
+  customerId,
+  metadata: { organizationId },
+});
+
+// Managed billing portal (payment methods, invoices, cancellation)
+const { url } = await polar.createPortalSession(customerId, appUrl);
+
+// Cancel at period end (reversible) vs revoke (immediate)
+await polar.updateSubscription(subscriptionId, { cancelAtPeriodEnd: true });
+
+// Webhooks: Standard Webhooks spec — verify the RAW body, before JSON.parse
+const raw = await request.text();
+if (!(await verifyPolarWebhook(raw, request.headers, env.POLAR_WEBHOOK_SECRET))) {
+  return new Response('invalid signature', { status: 401 });
+}
+```
+
+The browser side binds the same `PolarAdapter` contract to six endpoints under
+one base path — implement them on your worker to match:
+
+```ts
+// app/billing.ts — browser side
+import { createHttpAdapter } from '@umituz/web-polar-payment/http';
+
+const adapter = createHttpAdapter({
+  baseUrl: '/api/billing',
+  getUserId: () => session.organizationId, // used when a call has no id
+});
+
+//   GET  /status?userId=    POST /checkout { productId, billingCycle?, ... }
+//   POST /sync { checkoutId? }              GET  /history?userId=
+//   POST /cancel { reason? }                GET  /portal?userId=
+```
+
+Failures return a `{ "error": string | { "message": string } }` envelope with
+a non-2xx status; the adapter surfaces it as `Error("detail (HTTP status)")`.
 
 ## Error handling
 
