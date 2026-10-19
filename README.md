@@ -220,6 +220,29 @@ const adapter = createHttpAdapter({
 Failures return a `{ "error": string | { "message": string } }` envelope with
 a non-2xx status; the adapter surfaces it as `Error("detail (HTTP status)")`.
 
+### 8. Turnkey billing page — `./portal` over any adapter
+
+`PolarBillingPage` composes the whole portal (plan comparison, subscription
+tabs, invoices, hosted-portal payment methods) over a `PolarAdapter`. The
+host binds the adapter and the server-fetched catalog; everything else —
+data loading, checkout redirects, cancellation — is wired inside:
+
+```tsx
+import { PolarBillingPage } from '@umituz/web-polar-payment/portal';
+import { createHttpAdapter } from '@umituz/web-polar-payment/http';
+
+// products: fetched from your server (metadata.planId tags plan keys)
+<PolarBillingPage
+  adapter={createHttpAdapter({ baseUrl: '/api/billing', getUserId: () => orgId })}
+  products={products}
+  config={{ brandName: 'Acme', supportEmail: 'billing@acme.dev' }}
+/>
+```
+
+Prefer composing yourself? `createPolarPortalClient({ adapter, products })`
+returns the portal's `BillingApiClient` seam (plus `selectPlan` /
+`openPortal`) for direct use with `useBilling`.
+
 ## Error handling
 
 All adapter failures throw `FirebaseBillingError` with a **stable

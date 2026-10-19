@@ -104,3 +104,14 @@ export {
   DEFAULT_BILLING_CONFIG,
 } from './constants';
 export { BILLING_CYCLE } from './types';
+
+// Polar glue — adapter binding + turnkey page over a PolarAdapter
+export {
+  createPolarPortalClient,
+  PolarBillingPage,
+} from './polar';
+export type {
+  PolarPortalClient,
+  PolarPortalClientOptions,
+  PolarBillingPageProps,
+} from './polar';
