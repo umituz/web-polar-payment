@@ -3,8 +3,6 @@
  *
  * A self-hosted billing UI (plans, subscription, payment methods,
  * invoices, usage) that renders whatever a `BillingApiClient` returns.
- * Moved here from `@umituz/web-dashboard` so billing UI lives with the
- * billing SDK — dashboards stay app skeletons.
  */
 
 // Components

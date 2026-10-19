@@ -1,7 +1,4 @@
-/**
- * Tests for pure billing portal utilities (moved from web-dashboard's
- * billing domain, adapted to the tone/labels contract).
- */
+/** Tests for the pure billing portal utilities. */
 
 import { describe, it, expect } from 'vitest';
 import type { Invoice, InvoiceStatus, UsageMetric } from '../../../src/presentation/portal/types';
