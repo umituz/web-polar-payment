@@ -9,7 +9,7 @@
  * checkout that plan selection starts.
  */
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { PolarAdapter } from '../../../domain/interfaces';
 import type { BillingCycle } from '../../../domain/entities';
 import type { PolarProduct } from '../../../domain/entities';
@@ -81,6 +81,10 @@ export function PolarBillingPage({
   );
 
   const { billing, isLoading, error, loadBilling, cancelSubscription } = useBilling({ apiClient: client });
+
+  useEffect(() => {
+    void loadBilling();
+  }, [loadBilling]);
 
   const plans = config.plans ?? transformPolarProducts(products);
 
