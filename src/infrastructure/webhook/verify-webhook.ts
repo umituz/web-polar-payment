@@ -14,7 +14,7 @@ export interface WebhookHeadersLike {
   get(name: string): string | null | undefined;
 }
 
-const KNOWN_SECRET_PREFIXES = ['whsec_', 'polar_whsic_'] as const;
+const KNOWN_SECRET_PREFIXES = ['whsec_'] as const;
 
 function headerValue(
   headers: WebhookHeadersLike | Record<string, string>,
