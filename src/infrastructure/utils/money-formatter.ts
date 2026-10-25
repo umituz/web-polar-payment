@@ -9,21 +9,10 @@
  *     touching call sites
  */
 
+import { minorUnitDivisor } from '../../domain/utils/minor-units';
+
 const DEFAULT_LOCALE = 'en-US';
 const DEFAULT_CURRENCY = 'USD';
-
-/** Polar amounts are expressed in the currency's minor unit (e.g. cents). */
-const MINOR_UNIT_DIVISOR = 100;
-
-const ZERO_DECIMAL_CURRENCIES: ReadonlySet<string> = new Set([
-  'JPY', 'KRW', 'VND', 'CLP', 'PYG', 'XAF', 'XOF', 'BIF', 'DJF', 'GNF', 'XPF',
-]);
-
-function divisorFor(currency: string): number {
-  return ZERO_DECIMAL_CURRENCIES.has(currency.toUpperCase())
-    ? 1
-    : MINOR_UNIT_DIVISOR;
-}
 
 export interface MoneyFormatOptions {
   locale?: string;
@@ -58,7 +47,7 @@ export class MoneyFormatter {
         style: 'currency',
         currency: code,
         maximumFractionDigits: options.maximumFractionDigits ?? 2,
-      }).format(amount / divisorFor(code));
+      }).format(amount / minorUnitDivisor(code));
     } catch {
       return `${amount} ${code}`;
     }

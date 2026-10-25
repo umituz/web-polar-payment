@@ -10,6 +10,7 @@ import {
   calculateInvoiceTotal,
   sortInvoicesByDate,
   formatExpiry,
+  formatPrice,
   getPlanPrice,
   getStatusTone,
   getInvoiceStatusTone,
@@ -20,6 +21,21 @@ import {
   formatLabel,
 } from '../../../src/presentation/portal/labels';
 import { SUBSCRIPTION_STATUS, INVOICE_STATUS } from '../../../src/presentation/portal/constants';
+
+describe('formatPrice', () => {
+  const byLocale = (locale: string, currency: string, majorUnits: number): string =>
+    new Intl.NumberFormat(locale, { style: 'currency', currency }).format(majorUnits);
+
+  it('treats the amount as the currency minor unit, as Polar reports it', () => {
+    expect(formatPrice(9900, 'USD')).toBe('$99.00');
+    expect(formatPrice(47000, 'EUR')).toBe(byLocale('de-DE', 'EUR', 470));
+    expect(formatPrice(0, 'USD')).toBe('$0.00');
+  });
+
+  it('keeps zero-decimal currencies whole (no division)', () => {
+    expect(formatPrice(1500, 'JPY')).toBe(byLocale('ja-JP', 'JPY', 1500));
+  });
+});
 
 const makeInvoice = (id: string, status: InvoiceStatus, amount: number, date: string): Invoice =>
   ({

@@ -7,6 +7,7 @@
  */
 
 import type { VisualTone } from '../../theme/visual-tokens';
+import { toMajorUnits } from '../../../domain/utils/minor-units';
 import type {
   BillingCycle,
   Currency,
@@ -29,9 +30,9 @@ export function formatNumber(num: number, locale: string = 'en-US'): string {
 }
 
 /**
- * Format price with currency
+ * Format a Polar price with its currency symbol
  *
- * @param amount - Amount to format
+ * @param amount - Amount in the currency's minor unit (cents / whole yen), as Polar reports
  * @param currency - Currency code (default: USD)
  * @returns Formatted price string
  */
@@ -47,7 +48,7 @@ export function formatPrice(amount: number, currency: Currency = 'USD'): string 
   return new Intl.NumberFormat(localeMap[currency], {
     style: 'currency',
     currency,
-  }).format(amount);
+  }).format(toMajorUnits(amount, currency));
 }
 
 /**
