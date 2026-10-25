@@ -91,6 +91,11 @@ interface SubscriptionDto {
   metadata?: Record<string, string> | null;
 }
 
+interface SubscriptionListDto {
+  items?: SubscriptionDto[];
+  pagination?: { max_page?: number; current_page?: number; total_count?: number };
+}
+
 function resolveBaseUrl(config: PolarBillingConfig): string {
   if (config.baseUrl) return config.baseUrl;
   return config.sandbox ? POLAR_SANDBOX_BASE_URL : POLAR_API_BASE_URL;
@@ -171,13 +176,15 @@ export class PolarBillingClient {
   }
 
   async createPortalSession(customerId: string, returnUrl?: string): Promise<PortalSession> {
-    const body = returnUrl ? { returnURL: returnUrl } : undefined;
-    const dto = await this.request<{ url?: string }>(
+    const dto = await this.request<{ customer_portal_url?: string }>(
       'POST',
-      `/customer-sessions/${encodeURIComponent(customerId)}/portal`,
-      body,
+      '/customer-sessions',
+      {
+        customer_id: customerId,
+        ...(returnUrl ? { return_url: returnUrl } : {}),
+      },
     );
-    const url = dto.url;
+    const url = dto.customer_portal_url;
     if (!url) {
       throw new PolarApiError('Polar customer portal session returned no URL', 500, JSON.stringify(dto));
     }
@@ -194,11 +201,17 @@ export class PolarBillingClient {
     if (filter.customerId) query.set('customer_id', filter.customerId);
     if (filter.productId) query.set('product_id', filter.productId);
     const suffix = query.size > 0 ? `?${query.toString()}` : '';
-    const dto = await this.request<{ items: SubscriptionDto[]; pagination?: unknown }>(
-      'GET',
-      `/subscriptions${suffix}`,
-    );
-    return (dto.items ?? []).map(mapSubscription);
+    const first = await this.request<SubscriptionListDto>('GET', `/subscriptions${suffix}`);
+    const records: SubscriptionDto[] = [...(first.items ?? [])];
+    const maxPage = typeof first.pagination?.max_page === 'number' ? first.pagination.max_page : 1;
+    for (let page = 2; page <= maxPage; page += 1) {
+      const next = await this.request<SubscriptionListDto>(
+        'GET',
+        `/subscriptions${suffix}${suffix ? '&' : '?'}page=${page}`,
+      );
+      records.push(...(next.items ?? []));
+    }
+    return records.map(mapSubscription);
   }
 
   async updateSubscription(

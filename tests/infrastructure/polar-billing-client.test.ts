@@ -97,16 +97,53 @@ describe('PolarBillingClient', () => {
   });
 
   it('creates a portal session and surfaces a missing URL as an error', async () => {
-    const http = httpClientReturning({ url: 'https://customer.polar.sh/portal?token=abc' });
+    const http = httpClientReturning({ customer_portal_url: 'https://customer.polar.sh/portal?token=abc' });
     const client = new PolarBillingClient({ apiToken: 'oat_test', http });
     const portal = await client.createPortalSession('cus_1', 'https://app.example/billing');
     expect(portal.url).toContain('customer.polar.sh');
-    expect(http.calls[0].url).toBe('https://api.polar.sh/v1/customer-sessions/cus_1/portal');
-    expect(http.calls[0].body).toEqual({ returnURL: 'https://app.example/billing' });
+    expect(http.calls[0].url).toBe('https://api.polar.sh/v1/customer-sessions');
+    expect(http.calls[0].body).toEqual({
+      customer_id: 'cus_1',
+      return_url: 'https://app.example/billing',
+    });
 
     const broken = httpClientReturning({});
     const failing = new PolarBillingClient({ apiToken: 'oat_test', http: broken });
     await expect(failing.createPortalSession('cus_1')).rejects.toBeInstanceOf(PolarApiError);
+  });
+
+  it('follows subscription list pagination through every page', async () => {
+    const calls: HttpRequest[] = [];
+    const subscription = (id: string) => ({
+      id,
+      status: 'active',
+      product_id: 'p',
+      amount: 1,
+      currency: 'usd',
+      cancel_at_period_end: false,
+      customer_id: 'c',
+      metadata: {},
+    });
+    const pages = [
+      { items: [subscription('sub_1')], pagination: { max_page: 2, current_page: 1, total_count: 2 } },
+      { items: [subscription('sub_2')], pagination: { max_page: 2, current_page: 2, total_count: 2 } },
+    ];
+    let index = 0;
+    const http: HttpClient = {
+      async request<T>(request: HttpRequest): Promise<HttpResponse<T>> {
+        calls.push(request);
+        const page = pages[Math.min(index, pages.length - 1)];
+        index += 1;
+        return { status: 200, ok: true, data: page as T, text: async () => JSON.stringify(page) };
+      },
+    };
+    const client = new PolarBillingClient({ apiToken: 'oat_test', http });
+
+    const records = await client.listSubscriptions({ customerId: 'cus_9' });
+
+    expect(records.map((record) => record.id)).toEqual(['sub_1', 'sub_2']);
+    expect(calls[0].url).toBe('https://api.polar.sh/v1/subscriptions?customer_id=cus_9');
+    expect(calls[1].url).toBe('https://api.polar.sh/v1/subscriptions?customer_id=cus_9&page=2');
   });
 
   it('wraps non-2xx responses in PolarApiError with the body attached', async () => {
