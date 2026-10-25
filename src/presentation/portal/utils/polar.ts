@@ -22,6 +22,12 @@ const MONTHS_IN_YEAR = 12;
 
 const KNOWN_CURRENCIES: ReadonlySet<string> = new Set(Object.values(CURRENCY));
 
+/** Benefits become the feature list (empty descriptions dropped). */
+const productFeatures = (product: PolarProduct): string[] =>
+  product.benefits
+    .map((benefit) => benefit.description ?? '')
+    .filter((description) => description.length > 0);
+
 /**
  * Convert a Polar currency code to a typed Currency.
  * Throws on unknown codes so bad data fails loud instead of
@@ -62,23 +68,41 @@ export function transformPolarProductToPlan(product: PolarProduct, price: PolarP
     monthlyPrice: Math.round(monthlyAmount),
     yearlyPrice: Math.round(yearlyAmount),
     currency: toCurrency(price.currency),
-    features: product.benefits
-      .map((benefit) => benefit.description ?? '')
-      .filter((description) => description.length > 0),
+    features: productFeatures(product),
   };
 }
 
 /**
- * Transform every active recurring price of every unarchived product into
- * plan tiers — a product with both monthly and yearly prices yields two
- * tiers (same behavior as the dashboard original).
+ * Transform every unarchived product into exactly one plan tier. A product
+ * with both a monthly and a yearly recurring price keeps the two real
+ * figures — the yearly discount is whatever Polar actually charges. A
+ * product with a single recurring price derives the missing figure from
+ * it (×12 or ÷12); a product with no recurring price is skipped.
  */
 export function transformPolarProducts(products: PolarProduct[]): PlanTier[] {
-  return products
-    .filter((product) => !product.isArchived)
-    .flatMap((product) =>
-      product.prices
-        .filter((price) => !price.isArchived && price.recurringInterval !== undefined)
-        .map((price) => transformPolarProductToPlan(product, price)),
+  const tiers: PlanTier[] = [];
+  for (const product of products) {
+    if (product.isArchived) continue;
+    const recurring = product.prices.filter(
+      (price) => !price.isArchived && price.recurringInterval !== undefined,
     );
+    const monthly = recurring.find((price) => price.recurringInterval === 'monthly');
+    const yearly = recurring.find((price) => price.recurringInterval === 'yearly');
+    if (monthly && yearly) {
+      tiers.push({
+        id: product.id,
+        name: product.name,
+        description: product.description ?? '',
+        monthlyPrice: Math.round(monthly.amount ?? 0),
+        yearlyPrice: Math.round(yearly.amount ?? 0),
+        currency: toCurrency(monthly.currency),
+        features: productFeatures(product),
+      });
+    } else if (monthly) {
+      tiers.push(transformPolarProductToPlan(product, monthly));
+    } else if (yearly) {
+      tiers.push(transformPolarProductToPlan(product, yearly));
+    }
+  }
+  return tiers;
 }

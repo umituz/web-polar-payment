@@ -94,17 +94,52 @@ describe('transformPolarProducts', () => {
     expect(plans[0].id).toBe('prod_ok');
   });
 
-  it('emits one tier per active recurring price', () => {
+  it('emits one tier per product, pairing both real prices', () => {
     const plans = transformPolarProducts([
       product({
         prices: [
-          price({ id: 'p_month', recurringInterval: 'monthly' }),
-          price({ id: 'p_year', amount: 12000, recurringInterval: 'yearly' }),
+          price({ id: 'p_month', amount: 1000, recurringInterval: 'monthly' }),
+          price({ id: 'p_year', amount: 9000, recurringInterval: 'yearly' }),
         ],
       }),
     ]);
-    expect(plans).toHaveLength(2);
-    expect(plans.find((p) => p.monthlyPrice === 1200)).toBeDefined();
-    expect(plans.find((p) => p.yearlyPrice === 12000)).toBeDefined();
+    expect(plans).toHaveLength(1);
+    expect(plans[0]).toMatchObject({ id: 'prod_1', monthlyPrice: 1000, yearlyPrice: 9000 });
+  });
+
+  it('keeps the real yearly discount instead of deriving the yearly figure', () => {
+    const plans = transformPolarProducts([
+      product({
+        prices: [
+          price({ id: 'p_month', amount: 1000, recurringInterval: 'monthly' }),
+          price({ id: 'p_year', amount: 9000, recurringInterval: 'yearly' }),
+        ],
+      }),
+    ]);
+    expect(plans[0].yearlyPrice).toBe(9000);
+    expect(plans[0].monthlyPrice).toBe(1000);
+  });
+
+  it('derives the missing figure for a single-priced product', () => {
+    const monthlyOnly = transformPolarProducts([
+      product({ prices: [price({ recurringInterval: 'monthly' })] }),
+    ]);
+    expect(monthlyOnly).toHaveLength(1);
+    expect(monthlyOnly[0].monthlyPrice).toBe(1200);
+    expect(monthlyOnly[0].yearlyPrice).toBe(14400);
+
+    const yearlyOnly = transformPolarProducts([
+      product({ prices: [price({ amount: 12000, recurringInterval: 'yearly' })] }),
+    ]);
+    expect(yearlyOnly).toHaveLength(1);
+    expect(yearlyOnly[0].monthlyPrice).toBe(1000);
+    expect(yearlyOnly[0].yearlyPrice).toBe(12000);
+  });
+
+  it('skips products with no recurring price', () => {
+    const plans = transformPolarProducts([
+      product({ prices: [price({ recurringInterval: undefined })] }),
+    ]);
+    expect(plans).toHaveLength(0);
   });
 });
