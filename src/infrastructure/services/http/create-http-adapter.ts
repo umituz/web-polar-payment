@@ -1,8 +1,8 @@
 /**
  * createHttpAdapter — `PolarAdapter` over a conventional REST surface.
  *
- * For backends that are not Firebase (e.g. an API worker next to the app),
- * this adapter implements the SDK contract against six endpoints under a
+ * For backends that run as your own API worker next to the app, this
+ * adapter implements the SDK contract against six endpoints under a
  * single base path (default `/api/billing`):
  *
  *   GET  /status?userId=              -> SubscriptionStatus

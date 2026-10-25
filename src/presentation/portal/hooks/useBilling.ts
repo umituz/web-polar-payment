@@ -19,8 +19,8 @@ import { DEFAULT_BILLING_CONFIG } from '../constants';
 export type { Invoice };
 
 /**
- * API client contract — implementations can be a real fetch wrapper,
- * a Firebase function, or a test double.
+ * API client contract — implementations can be a real fetch wrapper
+ * or a test double.
  */
 export interface BillingApiClient {
   loadBilling: () => Promise<BillingSummary>;

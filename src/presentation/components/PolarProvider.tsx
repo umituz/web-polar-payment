@@ -7,8 +7,8 @@
  *   - Forward a navigation strategy so `startCheckout` can redirect
  *
  * Non-responsibilities:
- *   - The provider does NOT know about the Firebase implementation. It
- *     only knows about the `PolarAdapter` contract.
+ *   - The provider knows only the `PolarAdapter` contract — never a
+ *     concrete transport implementation.
  *   - Cross-cutting concerns (e.g. "redirect URL validation") are split
  *     into `security.util`.
  */

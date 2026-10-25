@@ -7,7 +7,7 @@
  *   - Surface clean errors for non-2xx responses
  *
  * Depends only on `HttpClient` (Strategy) and the product mapper. It does
- * NOT know about React, Firebase, or any other transport.
+ * NOT know about React or any other transport.
  */
 
 import {

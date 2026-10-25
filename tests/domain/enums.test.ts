@@ -11,7 +11,6 @@ import {
   parseBillingCycle,
 } from '../../src/domain/enums/billing-cycle.enum';
 import { POLAR_AMOUNT_TYPE } from '../../src/domain/enums/amount-type.enum';
-import { BILLING_ERROR_CODE } from '../../src/domain/enums/error-code.enum';
 
 describe('subscription status enum', () => {
   it('exposes the full Polar status set', () => {
@@ -63,13 +62,5 @@ describe('amount type enum', () => {
   it('covers the documented Polar amount types', () => {
     expect(POLAR_AMOUNT_TYPE.FIXED).toBe('fixed');
     expect(POLAR_AMOUNT_TYPE.METERED_UNIT).toBe('metered_unit');
-  });
-});
-
-describe('billing error codes', () => {
-  it('uses stable, hyphenated identifiers', () => {
-    expect(BILLING_ERROR_CODE.INVALID_ARGUMENT).toBe('invalid-argument');
-    expect(BILLING_ERROR_CODE.STATUS_LOAD_FAILED).toBe('status-load-failed');
-    expect(BILLING_ERROR_CODE.UNKNOWN).toBe('unknown');
   });
 });

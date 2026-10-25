@@ -1,6 +1,6 @@
 /**
  * createPolarPortalClient — binds a `PolarAdapter` (any transport:
- * firebase, http, custom) to the portal's `BillingApiClient` seam.
+ * http, custom) to the portal's `BillingApiClient` seam.
  *
  * One structural difference from Stripe-shaped backends: Polar manages
  * payment methods inside its hosted customer portal (there is no card

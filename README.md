@@ -1,21 +1,23 @@
 # @umituz/web-polar-payment
 
-Polar.sh subscription billing SDK with a Firebase adapter and React bindings.
+Polar.sh subscription billing SDK with an HTTP adapter, a turnkey billing
+portal and React bindings.
 
 The SDK is split into an **adapter-agnostic core** (`PolarAdapter` contract)
 and a **React presentation layer** (`PolarProvider`, `usePolarBilling`).
-The Firebase implementation is the default `PolarAdapter`; other backends
-can be plugged in by implementing the same interface.
+The HTTP adapter binds the contract to your own API; any other backend can
+be plugged in by implementing the same interface.
 
 ## Features
 
 - Adapter-agnostic core (`PolarAdapter` interface)
-- Firebase adapter (`createFirebaseAdapter`)
+- HTTP adapter for your own REST backend (`createHttpAdapter`)
 - Polar.sh product catalog (`getProducts`, `getProductById`, `getAllProducts`)
 - React provider + hooks (`PolarProvider`, `usePolarBilling`, `usePolarProducts`)
 - Ready-made UI: pricing table, checkout button, status badge, billing
   history, customer portal link, cancel flow — all localizable
-- Strongly-typed domain models, stable error codes, abortable I/O
+- Turnkey billing portal page (`PolarBillingPage`)
+- Strongly-typed domain models, abortable I/O
 
 ## Installation
 
@@ -29,9 +31,8 @@ Peers are **optional** — install only what you use:
 |---|---|---|
 | `…/core` | — | Any JS runtime (zero deps) |
 | `…/products` | — | `fetch` (browsers, Node ≥ 18, workers) |
-| `…/firebase` | `firebase` (v10 / v11 / v12) | Firebase app |
 | `…/react` | `react` (≥ 18) | React DOM or React Native Web |
-| root (`@umituz/web-polar-payment`) | `react` + `firebase` if you use those parts | Node ≥ 18 (`engines`) |
+| root (`@umituz/web-polar-payment`) | `react` if you use the React parts | Node ≥ 18 (`engines`) |
 
 `react-dom` is **not** required. The package is fully tree-shakeable
 (`sideEffects: false`, ESM + CJS + `.d.ts` via tsup).
@@ -39,7 +40,7 @@ Peers are **optional** — install only what you use:
 ## Subpath entries
 
 Each surface pulls in only its own dependencies — importing `/react`
-never loads Firebase code, importing `/core` loads nothing at all:
+never loads server code, importing `/core` loads nothing at all:
 
 ```ts
 // Pure domain — types, enums, mappers, the PolarAdapter contract
@@ -48,9 +49,6 @@ import { BILLING_CYCLE, parseBillingCycle, mapProduct } from '@umituz/web-polar-
 // Polar.sh product catalog over a pluggable HttpClient
 import { PolarProductRepository, FetchHttpClient } from '@umituz/web-polar-payment/products';
 
-// The Firebase adapter (requires the firebase peer)
-import { createFirebaseAdapter } from '@umituz/web-polar-payment/firebase';
-
 // React layer: provider, hooks, components, theme tokens
 import { PolarProvider, PricingTable } from '@umituz/web-polar-payment/react';
 
@@ -58,8 +56,11 @@ import { PolarProvider, PricingTable } from '@umituz/web-polar-payment/react';
 // subscription management, webhook signature verification (server only!)
 import { PolarBillingClient, verifyPolarWebhook } from '@umituz/web-polar-payment/server';
 
-// Browser PolarAdapter over your own REST endpoints (non-Firebase backends)
+// Browser PolarAdapter over your own REST endpoints
 import { createHttpAdapter } from '@umituz/web-polar-payment/http';
+
+// Turnkey billing portal page over any adapter
+import { PolarBillingPage } from '@umituz/web-polar-payment/portal';
 
 // Root entry = everything above (backwards-compatible import paths)
 import { usePolarBilling } from '@umituz/web-polar-payment';
@@ -70,13 +71,11 @@ import { usePolarBilling } from '@umituz/web-polar-payment';
 ### 1. Wrap the app
 
 ```tsx
-import { PolarProvider, createFirebaseAdapter } from '@umituz/web-polar-payment';
-import { getFunctions } from 'firebase/functions';
-import { getFirestore } from 'firebase/firestore';
+import { PolarProvider, createHttpAdapter } from '@umituz/web-polar-payment';
 
-const adapter = createFirebaseAdapter({
-  functions: getFunctions(),
-  firestore: getFirestore(),
+const adapter = createHttpAdapter({
+  baseUrl: '/api/billing',
+  getUserId: () => session.organizationId,
 });
 
 function App({ userId, children }) {
@@ -245,64 +244,47 @@ returns the portal's `BillingApiClient` seam (plus `selectPlan` /
 
 ## Error handling
 
-All adapter failures throw `FirebaseBillingError` with a **stable
-operation code** — safe to switch on:
-
-```ts
-import { BILLING_ERROR_CODE, isFirebaseBillingError } from '@umituz/web-polar-payment/firebase';
-
-try {
-  await adapter.cancelSubscription('too_expensive');
-} catch (error) {
-  if (isFirebaseBillingError(error) && error.code === BILLING_ERROR_CODE.CANCEL_FAILED) {
-    // the raw transport error (e.g. functions/unauthenticated) is on error.originalError
-  }
-}
-```
-
-Recovered (non-throwing) failures — billing history is treated as
-non-critical — can be routed to your telemetry:
-
-```ts
-createFirebaseAdapter({ functions, firestore, logger: (err) => telemetry.capture(err) });
-```
+Server-side failures throw `PolarApiError` with the HTTP `status` and the
+raw `body` attached — check with `isPolarApiError(error)`. Browser-side
+adapter failures surface as plain `Error` values carrying the endpoint's
+`{ "error": ... }` envelope detail and the HTTP status.
 
 ## Architecture
 
 ```
 src/
-├── core.ts / products.ts / firebase.ts / react.tsx   # subpath entries
+├── core.ts / products.ts / react.tsx   # subpath entries (+ server, http, portal)
 ├── domain/                       # Pure types + interfaces (no I/O)
 │   ├── entities/                 #   Subscription, Checkout, Order, ...
 │   ├── enums/                    #   SubscriptionStatus, BillingCycle, ...
 │   ├── interfaces/               #   PolarAdapter contract
+│   ├── utils/                    #   minor-unit money math
 │   └── mappers/                  #   snake_case DTO → camelCase domain
 ├── infrastructure/               # Transport, repositories, utilities
 │   ├── http/                     #   HttpClient (Strategy, AbortSignal-aware)
 │   ├── query/                    #   QueryBuilder (Builder)
 │   ├── pagination/               #   PageIterator (Iterator)
-│   ├── services/                 #   PolarProductRepository, Firebase facade
-│   ├── errors/                   #   FirebaseBillingError + codes
-│   ├── constants/                #   SUBSCRIPTION_STATUS, defaults
+│   ├── services/                 #   PolarProductRepository, PolarBillingClient,
+│   │   └── http/                 #   createHttpAdapter (six-endpoint contract)
+│   ├── constants/                #   SUBSCRIPTION_STATUS, Polar API base
 │   └── utils/                    #   validation, security, type-guards
 └── presentation/                 # React layer
     ├── context/                  #   PolarContext (race-safe refresh)
     ├── hooks/                    #   usePolarBilling, usePolarProducts
     ├── navigation/               #   NavigationStrategy
+    ├── portal/                   #   Turnkey billing portal (page + client)
     ├── theme/                    #   VisualTokens (self-contained)
     └── components/               #   Provider + UI components
 ```
 
 ### Patterns in use
 
-- **Adapter** — `PolarAdapter` interface, Firebase implementation
-- **Facade** — `FirebaseBillingFacade` composes six repositories
+- **Adapter** — `PolarAdapter` interface, HTTP implementation
 - **Repository** — one repository per business operation
 - **Strategy** — `HttpClient` (swap `fetch` for tests), `NavigationStrategy`
 - **Builder** — `QueryBuilder` for URL search params
 - **Iterator** — `PageIterator` for paginated Polar.sh lists
-- **Factory** — `createFirebaseAdapter(config)` wires the dependency graph
-- **Error as a value** — stable `BillingErrorCode`, raw cause preserved
+- **Error as a value** — `PolarApiError` carries status + raw body
 
 ### Design decisions
 
@@ -325,7 +307,7 @@ src/
 ```bash
 npm run typecheck   # tsc --noEmit
 npm run lint        # eslint (flat config)
-npm test            # vitest — 121 tests (domain, infra, presentation)
+npm test            # vitest — 170 tests (domain, infra, presentation)
 npm run build       # tsup — CJS + ESM + d.ts for every subpath entry
 npm pack --dry-run  # inspect the publishable tarball
 ```

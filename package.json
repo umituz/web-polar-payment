@@ -25,11 +25,6 @@
       "import": "./dist/products.mjs",
       "require": "./dist/products.js"
     },
-    "./firebase": {
-      "types": "./dist/firebase.d.ts",
-      "import": "./dist/firebase.mjs",
-      "require": "./dist/firebase.js"
-    },
     "./react": {
       "types": "./dist/react.d.ts",
       "import": "./dist/react.mjs",
@@ -57,8 +52,8 @@
     "src"
   ],
   "scripts": {
-    "build": "tsup src/index.ts src/core.ts src/products.ts src/firebase.ts src/react.tsx src/portal.ts src/server.ts src/http.ts --format cjs,esm --dts --clean --external firebase --external firebase/functions --external firebase/firestore",
-    "dev": "tsup src/index.ts src/core.ts src/products.ts src/firebase.ts src/react.tsx src/portal.ts src/server.ts src/http.ts --format cjs,esm --dts --watch --external firebase --external firebase/functions --external firebase/firestore",
+    "build": "tsup src/index.ts src/core.ts src/products.ts src/react.tsx src/portal.ts src/server.ts src/http.ts --format cjs,esm --dts --clean",
+    "dev": "tsup src/index.ts src/core.ts src/products.ts src/react.tsx src/portal.ts src/server.ts src/http.ts --format cjs,esm --dts --watch",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "test": "vitest run",
@@ -75,7 +70,6 @@
     "polar",
     "subscription",
     "billing",
-    "firebase",
     "react",
     "adapter",
     "facade",
@@ -92,13 +86,9 @@
   },
   "homepage": "https://github.com/umituz/web-polar-payment#readme",
   "peerDependencies": {
-    "firebase": "^10.0.0 || ^11.0.0 || ^12.0.0",
     "react": ">=18.0.0"
   },
   "peerDependenciesMeta": {
-    "firebase": {
-      "optional": true
-    },
     "react": {
       "optional": true
     }
@@ -114,7 +104,6 @@
     "@types/react-dom": "^18.3.7",
     "eslint": "^9.20.0",
     "eslint-plugin-react-hooks": "^5.1.0",
-    "firebase": "^12.0.0",
     "globals": "^15.14.0",
     "jsdom": "^25.0.0",
     "react": "^18.3.1",

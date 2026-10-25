@@ -2,8 +2,8 @@
  * `@umituz/web-polar-payment/core` — framework-agnostic, backend-agnostic.
  *
  * Domain types, enums, guards, and the `PolarAdapter` contract. This entry
- * has zero runtime dependencies: no React, no Firebase, no fetch. Any
- * SaaS — web, mobile, server — can build an adapter against this contract.
+ * has zero runtime dependencies: no React, no fetch. Any SaaS — web,
+ * mobile, server — can build an adapter against this contract.
  */
 
 /* ----- Subscription status ----- */
