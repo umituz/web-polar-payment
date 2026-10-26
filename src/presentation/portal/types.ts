@@ -169,8 +169,8 @@ export interface Invoice {
   number: string;
   /** Amount */
   amount: number;
-  /** Currency */
-  currency: Currency;
+  /** ISO 4217 code as reported by the source (not narrowed to a preset list). */
+  currency: string;
   /** Status */
   status: InvoiceStatus;
   /** Invoice date */

@@ -26,7 +26,6 @@ import { transformPolarProducts } from '../utils';
 import type { BillingApiClient } from '../hooks';
 import type {
   BillingSummary,
-  Currency,
   Invoice,
   PaymentMethod,
   PlanTier,
@@ -54,14 +53,6 @@ export interface PolarPortalClient extends BillingApiClient {
   selectPlan: (productId: string, cycle?: BillingCycle) => Promise<void>;
   /** Open the hosted customer portal (payment methods, invoices). */
   openPortal: () => Promise<string>;
-}
-
-const KNOWN_CURRENCIES: ReadonlySet<string> = new Set(Object.values(CURRENCY));
-
-function toCurrency(raw: string): Currency {
-  const upper = raw.toUpperCase();
-  if (KNOWN_CURRENCIES.has(upper)) return upper as Currency;
-  return CURRENCY.USD;
 }
 
 function portalStatus(core: CoreSubscriptionStatus['subscriptionStatus']): Subscription['status'] {
@@ -104,7 +95,7 @@ function orderToInvoice(order: OrderItem): Invoice {
     id: order.id,
     number: order.id.slice(-8).toUpperCase(),
     amount: order.amount,
-    currency: toCurrency(order.currency),
+    currency: order.currency.toUpperCase(),
     status: paid ? INVOICE_STATUS.PAID : INVOICE_STATUS.OPEN,
     date,
     dueDate: date,

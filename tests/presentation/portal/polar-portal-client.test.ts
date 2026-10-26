@@ -89,6 +89,31 @@ describe('createPolarPortalClient', () => {
     expect(summary.paymentMethods).toEqual([]);
   });
 
+  it('keeps invoice currencies outside the preset list verbatim instead of faking USD', async () => {
+    const adapter = makeAdapter({
+      getBillingHistory: vi.fn(async (): Promise<OrderItem[]> => [
+        {
+          id: 'ord_sek',
+          createdAt: '2026-10-01T12:00:00Z',
+          amount: 49000,
+          currency: 'sek',
+          status: 'paid',
+          paid: true,
+          productName: 'Professional',
+        },
+      ]),
+    });
+    const client = createPolarPortalClient({
+      adapter,
+      products: PRODUCTS,
+      navigation: new NoopNavigationStrategy(),
+    });
+
+    const summary = await client.loadBilling();
+
+    expect(summary.recentInvoices[0]).toMatchObject({ id: 'ord_sek', currency: 'SEK' });
+  });
+
   it('starts a checkout and redirects through the strategy', async () => {
     const redirect = vi.fn();
     const adapter = makeAdapter();

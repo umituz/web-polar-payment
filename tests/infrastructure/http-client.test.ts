@@ -64,21 +64,73 @@ describe('FetchHttpClient', () => {
     expect(response.status).toBe(500);
   });
 
-  it('passes the AbortSignal to the transport', async () => {
-    const fetchMock = mockFetchOnce('{}');
-    vi.stubGlobal('fetch', fetchMock);
+  it('forwards caller aborts to the transport signal', async () => {
+    let transportSignal: AbortSignal | null | undefined;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        (_url: string, init: RequestInit) =>
+          new Promise<Response>((_resolve, reject) => {
+            transportSignal = init.signal;
+            init.signal?.addEventListener('abort', () => {
+              reject(new DOMException('This operation was aborted', 'AbortError'));
+            });
+          }),
+      ),
+    );
 
     const controller = new AbortController();
-    await new FetchHttpClient().request({
+    const pending = new FetchHttpClient().request({
       method: 'GET',
       url: 'https://x.test',
       signal: controller.signal,
     });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(transportSignal?.aborted).toBe(false);
 
-    expect(fetchMock).toHaveBeenCalledWith(
-      'https://x.test',
-      expect.objectContaining({ signal: controller.signal }),
+    controller.abort();
+    await expect(pending).rejects.toMatchObject({ name: 'AbortError' });
+  });
+
+  it('aborts requests that exceed the timeout budget', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        (_url: string, init: RequestInit) =>
+          new Promise<Response>((_resolve, reject) => {
+            init.signal?.addEventListener('abort', () => {
+              reject(new DOMException('This operation was aborted', 'AbortError'));
+            });
+          }),
+      ),
     );
+
+    await expect(
+      new FetchHttpClient().request({
+        method: 'GET',
+        url: 'https://x.test',
+        timeoutMs: 10,
+      }),
+    ).rejects.toMatchObject({ name: 'TimeoutError' });
+  });
+
+  it('completes requests that land inside the budget', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        () =>
+          new Promise<Response>((resolve) => {
+            setTimeout(() => resolve(new Response('{}', { status: 200 })), 5);
+          }),
+      ),
+    );
+
+    const response = await new FetchHttpClient().request({
+      method: 'GET',
+      url: 'https://x.test',
+      timeoutMs: 2_000,
+    });
+    expect(response.ok).toBe(true);
   });
 
   it('serializes bodies and sets Content-Type', async () => {

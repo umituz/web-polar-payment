@@ -10,7 +10,6 @@ import type { VisualTone } from '../../theme/visual-tokens';
 import { toMajorUnits } from '../../../domain/utils/minor-units';
 import type {
   BillingCycle,
-  Currency,
   Invoice,
   InvoiceStatus,
   PlanTier,
@@ -36,8 +35,8 @@ export function formatNumber(num: number, locale: string = 'en-US'): string {
  * @param currency - Currency code (default: USD)
  * @returns Formatted price string
  */
-export function formatPrice(amount: number, currency: Currency = 'USD'): string {
-  const localeMap: Record<Currency, string> = {
+export function formatPrice(amount: number, currency: string = 'USD'): string {
+  const localeMap: Record<string, string> = {
     USD: 'en-US',
     EUR: 'de-DE',
     GBP: 'en-GB',
@@ -45,7 +44,7 @@ export function formatPrice(amount: number, currency: Currency = 'USD'): string 
     JPY: 'ja-JP',
   };
 
-  return new Intl.NumberFormat(localeMap[currency], {
+  return new Intl.NumberFormat(localeMap[currency] ?? 'en-US', {
     style: 'currency',
     currency,
   }).format(toMajorUnits(amount, currency));

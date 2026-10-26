@@ -37,6 +37,8 @@ export interface PolarApiConfig {
 export interface PolarRequestOptions {
   /** Aborts the request (and any follow-up pages) when fired. */
   signal?: AbortSignal;
+  /** Request budget in ms; defaults to the HTTP client's 15s. */
+  timeoutMs?: number;
 }
 
 export class PolarApiError extends Error {
@@ -96,6 +98,7 @@ export class PolarProductRepository {
       url,
       headers: this.authHeaders(),
       signal: options?.signal,
+      timeoutMs: options?.timeoutMs,
     });
 
     if (!response.ok) {
@@ -124,6 +127,7 @@ export class PolarProductRepository {
       url,
       headers: this.authHeaders(),
       signal: options?.signal,
+      timeoutMs: options?.timeoutMs,
     });
 
     if (response.status === 404) return null;
