@@ -105,6 +105,10 @@ export function createHttpAdapter(config: HttpAdapterConfig = {}): PolarAdapter 
           productId: params.productId,
           ...(params.billingCycle ? { billingCycle: params.billingCycle } : {}),
           ...(params.successUrl ? { successUrl: params.successUrl } : {}),
+          ...(params.planKey ? { planKey: params.planKey } : {}),
+          ...(params.customerEmail ? { customerEmail: params.customerEmail } : {}),
+          ...(params.seats !== undefined ? { seats: params.seats } : {}),
+          ...(params.metadata ? { metadata: params.metadata } : {}),
         },
         params.userId,
       );

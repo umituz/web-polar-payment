@@ -50,8 +50,10 @@ export type {
   PriceType,
 } from './domain/entities/product.entity';
 
-/* ----- Adapter contract ----- */
+/* ----- Adapter contract & implementations ----- */
 export type { PolarAdapter } from './domain/interfaces';
+export { createMemoryPolarAdapter } from './infrastructure/services/memory/create-memory-adapter';
+export type { MemoryAdapterConfig } from './infrastructure/services/memory/create-memory-adapter';
 
 /* ----- Polar payload mapping (for custom adapters) ----- */
 export { mapProduct, mapProductList } from './domain/mappers/product.mapper';
